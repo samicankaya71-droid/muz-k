@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Usta Müzik Arşivi</title>
+    <style>
+        :root { --ana-renk: #1db954; --arka-plan: #0b0b0b; --kart-renk: #181818; }
+        body { background: var(--arka-plan); color: white; font-family: 'Segoe UI', sans-serif; margin: 0; overflow-x: hidden; }
+        
+        /* Liste Alanı */
+        #liste-bolumu { padding: 20px; padding-bottom: 160px; max-width: 800px; margin: 0 auto; }
+        .kart { 
+            background: var(--kart-renk); padding: 18px; margin-bottom: 12px; 
+            border-radius: 12px; cursor: pointer; border: 1px solid #282828; 
+            display: flex; justify-content: space-between; align-items: center;
+            transition: 0.3s;
+        }
+        .kart:hover { background: #222; border-color: var(--ana-renk); transform: scale(1.02); }
+        .kart.aktif { border-left: 6px solid var(--ana-renk); background: #121212; }
+        .bilgi strong { display: block; font-size: 17px; color: #fff; }
+        .bilgi small { color: #b3b3b3; font-size: 14px; }
+
+        /* Alt Oynatıcı */
+        #alt-panel { 
+            position: fixed; bottom: 0; left: 0; width: 100%; 
+            background: rgba(0, 0, 0, 0.95); backdrop-filter: blur(10px);
+            border-top: 1px solid #333; padding: 20px 0; box-shadow: 0 -10px 30px rgba(0,0,0,0.8);
+        }
+        .panel-icerik { width: 90%; max-width: 600px; margin: 0 auto; text-align: center; }
+        #suan-calan { font-weight: bold; color: var(--ana-renk); margin-bottom: 8px; font-size: 16px; height: 20px; }
+        
+        /* Kontroller */
+        .kontroller { display: flex; justify-content: center; align-items: center; gap: 25px; }
+        .play-btn { 
+            background: white; border: none; width: 55px; height: 55px; 
+            border-radius: 50%; font-size: 24px; cursor: pointer; 
+            display: flex; align-items: center; justify-content: center;
+        }
+        .yan-btn { background: none; border: none; color: white; font-size: 30px; cursor: pointer; opacity: 0.8; }
+        .yan-btn:hover { opacity: 1; color: var(--ana-renk); }
+
+        /* İlerleme Çubuğu */
+        .p-container { width: 100%; height: 6px; background: #333; border-radius: 10px; cursor: pointer; margin: 15px 0; position: relative; }
+        .p-bar { width: 0%; height: 100%; background: var(--ana-renk); border-radius: 10px; transition: width 0.1s linear; }
+
+        /* Yükleme Ekranı */
+        #loader { text-align: center; margin-top: 100px; color: var(--ana-renk); font-size: 18px; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div id="liste-bolumu">
+    <div id="loader">Arşiv taranıyor, bekleyin usta...</div>
+    <div id="ana-liste"></div>
+</div>
+
+<div id="alt-panel">
+    <div class="panel-icerik">
+        <div id="suan-calan">Bir parça seç usta</div>
+        
+        <div class="p-container" id="p-cont" onclick="atla(event)">
+            <div class="p-bar" id="p-bar"></div>
+        </div>
+
+        <div class="kontroller">
+            <button class="yan-btn" onclick="onceki()">⏮</button>
+            <button id="pBtn" class="play-btn" onclick="oynatDur()">▶</button>
+            <button class="yan-btn" onclick="sonraki()">⏭</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // SİSTEM AYARLARI
+    const TABLO_ID = "1wmpmxKjl-EFhiwqEShsPYx9VjiXfEmqvfdlI2k0Bkq8";
+    const sheetUrl = `https://docs.google.com/spreadsheets/d/${TABLO_ID}/gviz/tq?tqx=out:json`;
+    
+    let liste = [];
+    let sira = 0;
+    let ses = new Audio();
+    let oynatiliyor = false;
+
+    // VERİ ÇEKİCİ
+    async function arsiviYukle() {
+        try {
+            const res = await fetch(sheetUrl);
+            const data = await res.text();
+            const json = JSON.parse(data.substring(47).slice(0, -2));
+            const satirlar = json.table.rows;
+
+            liste = satirlar.map(r => ({
+                isim: r.c[0] ? r.c[0].v : "İsimsiz",
+                sanatci: r.c[1] ? r.c[1].v : "Bilinmiyor",
+                link: r.c[2] ? r.c[2].v : ""
+            })).filter(s => s.link.startsWith("http"));
+
+            if(liste.length > 0) {
+                document.getElementById('loader').style.display = 'none';
+                listeyiYaz();
+            } else {
+                document.getElementById('loader').innerText = "Tabloda şarkı bulunamadı!";
+            }
+        } catch (h) {
+            document.getElementById('loader').innerText = "Bağlantı kesildi! Tablo yayınlanmış mı?";
+        }
+    }
+
+    // LİSTEYİ OLUŞTUR
+    function listeyiYaz() {
+        const div = document.getElementById('ana-liste');
+        div.innerHTML = liste.map((s, i) => `
+            <div class="kart" id="k-${i}" onclick="parcaCal(${i})">
+                <div class="bilgi">
+                    <strong>${s.isim}</strong>
+                    <small>${s.sanatci}</small>
+                </div>
+                <span style="font-size:20px">🎵</span>
+            </div>
+        `).join('');
+    }
+
+    // ÇALMA SİSTEMİ
+    function parcaCal(i) {
+        document.querySelectorAll('.kart').forEach(k => k.classList.remove('aktif'));
+        sira = i;
+        const parca = liste[sira];
+        
+        document.getElementById(`k-${i}`).classList.add('aktif');
+        document.getElementById('suan-calan').innerText = parca.isim + " - " + parca.sanatci;
+        
+        ses.src = parca.link;
+        ses.play().catch(e => {
+            alert("Usta bu link bozuk: " + parca.isim);
+        });
+        oynatiliyor = true;
+        document.getElementById('pBtn').innerText = "⏸";
+    }
+
+    function oynatDur() {
+        if(!ses.src) return;
+        if(ses.paused) { ses.play(); document.getElementById('pBtn').innerText = "⏸"; }
+        else { ses.pause(); document.getElementById('pBtn').innerText = "▶"; }
+    }
+
+    function sonraki() { parcaCal((sira + 1) % liste.length); }
+    function onceki() { parcaCal((sira - 1 + liste.length) % liste.length); }
+
+    // İLERLEME ÇUBUĞU
+    ses.ontimeupdate = () => {
+        const yuzde = (ses.currentTime / ses.duration) * 100;
+        document.getElementById('p-bar').style.width = (yuzde || 0) + "%";
+    };
+
+    ses.onended = () => sonraki();
+
+    function atla(e) {
+        const c = document.getElementById('p-cont');
+        const oran = e.offsetX / c.offsetWidth;
+        ses.currentTime = oran * ses.duration;
+    }
+
+    // Başlat
+    arsiviYukle();
+</script>
+
+</body>
+</html>
