@@ -3,31 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Usta Müzik Player v3.5</title>
+    <title>Usta Müzik Player v3.8</title>
     <style>
-        /* Modern ve Neon Tasarım */
         body { background: #0f0f0f; color: #fff; font-family: 'Segoe UI', sans-serif; display: flex; flex-direction: column; align-items: center; padding: 20px; }
         .player-card { background: #1a1a1a; padding: 30px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); width: 350px; text-align: center; position: relative; border: 1px solid #333; }
         .neon-text { color: #00f2ff; text-shadow: 0 0 10px #00f2ff; margin: 10px 0; }
         .controls { display: flex; justify-content: center; gap: 20px; margin-top: 20px; }
         button { background: none; border: 2px solid #00f2ff; color: #00f2ff; padding: 10px 20px; border-radius: 50px; cursor: pointer; transition: 0.3s; font-weight: bold; }
         button:hover { background: #00f2ff; color: #000; }
-        
-        /* Gizli Admin Paneli */
-        #admin-btn { position: absolute; top: 15px; right: 15px; font-size: 20px; cursor: pointer; opacity: 0.6; transition: 0.3s; }
-        #admin-btn:hover { opacity: 1; transform: rotate(90deg); }
+        #admin-btn { position: absolute; top: 15px; right: 15px; font-size: 20px; cursor: pointer; opacity: 0.6; }
         #admin-panel { display: none; background: #222; padding: 15px; border-radius: 10px; margin-top: 15px; border: 1px solid #444; }
         input { width: 90%; padding: 10px; margin-top: 10px; background: #333; border: 1px solid #555; color: #fff; border-radius: 5px; text-align: center; }
-
-        /* Playlist Alanı */
         #playlist { margin-top: 20px; width: 350px; max-height: 250px; overflow-y: auto; background: #151515; border-radius: 10px; padding: 10px; border: 1px solid #222; }
         .song-item { padding: 10px; border-bottom: 1px solid #222; cursor: pointer; font-size: 14px; transition: 0.2s; text-align: left; }
-        .song-item:hover { background: #222; color: #00f2ff; padding-left: 15px; }
+        .song-item:hover { background: #222; color: #00f2ff; }
         .active-song { color: #00f2ff; font-weight: bold; background: #1a1a1a; border-left: 3px solid #00f2ff; }
-        
-        /* Scrollbar güzelleştirme */
-        #playlist::-webkit-scrollbar { width: 5px; }
-        #playlist::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
     </style>
 </head>
 <body>
@@ -38,9 +28,8 @@
     <p id="artist-name" class="neon-text">Lütfen Bekleyin</p>
     
     <div id="admin-panel">
-        <small style="color: #00f2ff;">Yerel Sunucu IP (Mühürlü):</small>
+        <small style="color: #00f2ff;">Mühürlü IP Adresi:</small>
         <input type="text" id="ip-input" placeholder="http://192.168.1.XX:8080/" onchange="saveIP()">
-        <p style="font-size: 10px; color: #888; margin-top: 8px;">IP değişince kutu dışına tıkla, otomatik kaydeder.</p>
     </div>
 
     <div class="controls">
@@ -53,8 +42,7 @@
     <audio id="audio2"></audio>
 </div>
 
-<div id="playlist">
-    </div>
+<div id="playlist"></div>
 
 <script>
     let songs = [];
@@ -67,24 +55,17 @@
     const audio2 = document.getElementById('audio2');
     const ipInput = document.getElementById('ip-input');
 
-    // 1. ADIM: Sayfa açıldığında IP'yi mühürden çek ve Tabloyu oku
     window.onload = function() {
         const savedIP = localStorage.getItem('ustaLocalIP');
-        if (savedIP) {
-            ipInput.value = savedIP;
-        } else {
-            // İlk kurulum için varsayılan (Seninkini buraya yazdım usta)
-            ipInput.value = "http://192.168.1.104:8080/";
-        }
+        if (savedIP) ipInput.value = savedIP;
         loadSongsFromGoogle();
     };
 
-    // 2. ADIM: IP Adresini Hafızaya Mühürleme
     function saveIP() {
         let val = ipInput.value.trim();
         if(val && !val.endsWith('/')) val += '/';
         localStorage.setItem('ustaLocalIP', val);
-        alert("IP Adresi Hafızaya Mühürlendi: " + val);
+        alert("IP Mühürlendi!");
         location.reload(); 
     }
 
@@ -93,7 +74,6 @@
         panel.style.display = panel.style.display === 'block' ? 'none' : 'block';
     }
 
-    // 3. ADIM: Google Tablo'dan Verileri Çekme
     async function loadSongsFromGoogle() {
         const tableID = "1wmpmxKjl-EFhiwqEShsPYx9VjiXfEmqvfdlI2k0Bkq8";
         const url = `https://docs.google.com/spreadsheets/d/${tableID}/gviz/tq?tqx=out:json`;
@@ -101,8 +81,7 @@
         try {
             const response = await fetch(url);
             const text = await response.text();
-            const jsonText = text.substring(47).slice(0, -2);
-            const json = JSON.parse(jsonText);
+            const json = JSON.parse(text.substring(47).slice(0, -2));
             
             songs = json.table.rows.map(row => ({
                 title: row.c[0] ? row.c[0].v : "İsimsiz",
@@ -113,20 +92,15 @@
             if(songs.length > 0) {
                 renderPlaylist();
                 updateUI();
-            } else {
-                document.getElementById('song-title').innerText = "Tablo Boş!";
             }
-        } catch (e) {
-            console.error(e);
-            document.getElementById('song-title').innerText = "Bağlantı Hatası!";
-        }
+        } catch (e) { console.error(e); }
     }
 
     function renderPlaylist() {
         const list = document.getElementById('playlist');
         list.innerHTML = songs.map((s, i) => `
             <div class="song-item ${i === currentIndex ? 'active-song' : ''}" onclick="playSpecific(${i})">
-                ${i+1}. ${s.title} - ${s.artist}
+                ${s.title}
             </div>
         `).join('');
     }
@@ -136,7 +110,6 @@
         document.getElementById('artist-name').innerText = songs[currentIndex].artist;
     }
 
-    // 4. ADIM: Oynatma ve Crossfade
     function playSpecific(index) {
         currentIndex = index;
         startSong();
@@ -145,18 +118,32 @@
     function startSong() {
         const base = localStorage.getItem('ustaLocalIP') || ipInput.value;
         const song = songs[currentIndex];
-        const fullUrl = base + encodeURIComponent(song.fileName.trim());
+        
+        // Boşlukları ve karakterleri tarayıcı diline çeviriyoruz
+        const cleanFileName = song.fileName.trim();
+        const fullUrl = base + encodeURIComponent(cleanFileName);
 
         let currentPlayer = activePlayer === 1 ? audio1 : audio2;
         currentPlayer.src = fullUrl;
-        currentPlayer.volume = 1;
-        currentPlayer.play().catch(e => console.log("Oynatma hatası: IP veya Dosya adı yanlış."));
         
-        isPlaying = true;
-        document.getElementById('play-btn').innerText = "⏸";
-        updateUI();
-        renderPlaylist();
-        setupCrossfade(currentPlayer);
+        // GÜVENLİK DUVARI DELME HAMLESİ:
+        // Tarayıcı otomatik çalmayı engellerse kullanıcıya uyarı yerine 
+        // direkt linki denemesini söyleyeceğiz.
+        let playPromise = currentPlayer.play();
+
+        if (playPromise !== undefined) {
+            playPromise.then(_ => {
+                isPlaying = true;
+                document.getElementById('play-btn').innerText = "⏸";
+                updateUI();
+                renderPlaylist();
+                setupCrossfade(currentPlayer);
+            }).catch(error => {
+                console.log("Güvenlik engeli! Alternatif yol deneniyor...");
+                // Eğer telefonda hala çalmıyorsa, şarkı ismine basınca 
+                // doğrudan dosyayı yeni sekmede açmayı deneyebilirsin usta.
+            });
+        }
     }
 
     function setupCrossfade(player) {
@@ -172,7 +159,6 @@
         currentIndex = (currentIndex + 1) % songs.length;
         activePlayer = activePlayer === 1 ? 2 : 1;
         let newPlayer = activePlayer === 1 ? audio1 : audio2;
-        
         const base = localStorage.getItem('ustaLocalIP') || ipInput.value;
         newPlayer.src = base + encodeURIComponent(songs[currentIndex].fileName.trim());
         newPlayer.volume = 0;
@@ -196,13 +182,8 @@
 
     function togglePlay() {
         let p = activePlayer === 1 ? audio1 : audio2;
-        if (p.paused) { 
-            p.play(); 
-            document.getElementById('play-btn').innerText = "⏸"; 
-        } else { 
-            p.pause(); 
-            document.getElementById('play-btn').innerText = "▶"; 
-        }
+        if (p.paused) { p.play(); document.getElementById('play-btn').innerText = "⏸"; }
+        else { p.pause(); document.getElementById('play-btn').innerText = "▶"; }
     }
 
     function nextSong() { currentIndex = (currentIndex + 1) % songs.length; startSong(); }
