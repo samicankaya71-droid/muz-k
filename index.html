@@ -3,25 +3,28 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Usta Global Player v7.0</title>
+    <title>Usta Global v8.5</title>
     <style>
-        body { background: #0b0b0b; color: #eee; font-family: 'Segoe UI', sans-serif; display: flex; flex-direction: column; align-items: center; padding: 20px; }
+        body { background: #0b0b0b; color: #eee; font-family: 'Segoe UI', sans-serif; display: flex; flex-direction: column; align-items: center; padding: 20px; margin: 0; }
         .player-card { background: linear-gradient(145deg, #1e1e1e, #111); padding: 30px; border-radius: 25px; box-shadow: 0 15px 35px rgba(0,0,0,0.8); width: 320px; text-align: center; border: 1px solid #333; position: relative; }
-        .neon-text { color: #00f2ff; text-shadow: 0 0 12px #00f2ff; margin: 15px 0; font-size: 1.1rem; font-weight: bold; }
+        .neon-text { color: #00f2ff; text-shadow: 0 0 12px #00f2ff; margin: 15px 0; font-size: 1.2rem; font-weight: bold; min-height: 1.5em; }
         .controls { display: flex; justify-content: center; gap: 15px; margin-top: 25px; }
-        button { background: rgba(0,242,255,0.05); border: 2px solid #00f2ff; color: #00f2ff; width: 55px; height: 55px; border-radius: 50%; cursor: pointer; transition: 0.3s; font-size: 18px; display: flex; align-items: center; justify-content: center; }
+        button { background: rgba(0,242,255,0.05); border: 2px solid #00f2ff; color: #00f2ff; width: 55px; height: 55px; border-radius: 50%; cursor: pointer; transition: 0.3s; font-size: 18px; display: flex; align-items: center; justify-content: center; outline: none; }
         button:hover { background: #00f2ff; color: #000; box-shadow: 0 0 15px #00f2ff; }
-        #playlist { margin-top: 25px; width: 320px; max-height: 300px; overflow-y: auto; background: #151515; border-radius: 15px; padding: 10px; border: 1px solid #222; }
-        .song-item { padding: 12px; border-bottom: 1px solid #222; cursor: pointer; font-size: 14px; text-align: left; color: #aaa; }
+        #playlist { margin-top: 25px; width: 340px; max-height: 250px; overflow-y: auto; background: #151515; border-radius: 15px; padding: 5px; border: 1px solid #222; }
+        .song-item { padding: 12px; border-bottom: 1px solid #222; cursor: pointer; font-size: 14px; text-align: left; color: #aaa; transition: 0.2s; }
         .active-song { color: #00f2ff; font-weight: bold; background: #1a1a1a; border-left: 4px solid #00f2ff; }
-        .status-msg { font-size: 10px; color: #555; margin-top: 10px; }
+        .status-msg { font-size: 11px; color: #00f2ff; margin-top: 10px; opacity: 0.7; }
+        /* Kaydırma çubuğu tasarımı */
+        #playlist::-webkit-scrollbar { width: 5px; }
+        #playlist::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
     </style>
 </head>
 <body>
 
 <div class="player-card">
-    <h3 id="song-title">Liste Yükleniyor...</h3>
-    <p id="artist-name" class="neon-text">Usta Drive Sistemi</p>
+    <h3 id="song-title">Liste Çekiliyor...</h3>
+    <p id="artist-name" class="neon-text">Degoo Cloud System</p>
     
     <div class="controls">
         <button onclick="prevSong()">⏮</button>
@@ -31,8 +34,8 @@
     
     <div id="status" class="status-msg">Hazır</div>
     
-    <audio id="audio1"></audio>
-    <audio id="audio2"></audio>
+    <audio id="audio1" preload="auto"></audio>
+    <audio id="audio2" preload="auto"></audio>
 </div>
 
 <div id="playlist"></div>
@@ -41,33 +44,26 @@
     let songs = [];
     let currentIndex = 0;
     let activePlayer = 1;
-    let crossfadeTime = 3500; 
+    let crossfadeTime = 3000; 
     const audio1 = document.getElementById('audio1');
     const audio2 = document.getElementById('audio2');
 
-    // USTA: Drive linkini çalınabilir ham veriye dönüştüren sihirli fonksiyon
+    // USTA: Bu fonksiyon linkleri temizler ve çalınabilir yapar
     function formatUrl(url) {
         if (!url) return "";
-        
-        // Google Drive Linkini Düzenle
-        if (url.includes('drive.google.com')) {
-            let fileId = "";
-            try {
-                if (url.includes('/d/')) {
-                    fileId = url.split('/d/')[1].split('/')[0];
-                } else if (url.includes('id=')) {
-                    fileId = url.split('id=')[1].split('&')[0];
-                }
-                return `https://docs.google.com/uc?export=download&id=${fileId}`;
-            } catch (e) { return url; }
+        let cleanUrl = url.trim();
+
+        // Google Drive Düzeltici
+        if (cleanUrl.includes('drive.google.com')) {
+            let fileId = cleanUrl.split('/d/')[1]?.split('/')[0] || cleanUrl.split('id=')[1]?.split('&')[0];
+            return `https://docs.google.com/uc?export=download&id=${fileId}`;
         }
-        
-        // Dropbox Linkini Düzenle
-        if (url.includes('dropbox.com')) {
-            return url.replace(/\?dl=0$|\?dl=1$|$/, '?raw=1');
+        // Dropbox Düzeltici
+        if (cleanUrl.includes('dropbox.com')) {
+            return cleanUrl.replace(/\?dl=0$|\?dl=1$|$/, '?raw=1');
         }
-        
-        return url;
+        // Degoo için "CORS" ve "Ham Veri" zorlaması yapıyoruz
+        return cleanUrl;
     }
 
     async function loadSongsFromGoogle() {
@@ -82,13 +78,14 @@
             
             songs = json.table.rows.map(row => ({
                 title: row.c[0] ? String(row.c[0].v) : "İsimsiz",
-                artist: row.c[1] ? String(row.c[1].v) : "Usta",
+                artist: row.c[1] ? String(row.c[1].v) : "Bilinmiyor",
                 url: row.c[2] ? String(row.c[2].v) : ""
             })).filter(s => s.url !== "");
 
             if(songs.length > 0) {
                 renderPlaylist();
                 document.getElementById('song-title').innerText = songs[0].title;
+                document.getElementById('artist-name').innerText = songs[0].artist;
             } else {
                 document.getElementById('song-title').innerText = "Tablo Boş!";
             }
@@ -103,7 +100,7 @@
         const list = document.getElementById('playlist');
         list.innerHTML = songs.map((s, i) => `
             <div class="song-item ${i === currentIndex ? 'active-song' : ''}" onclick="playSpecific(${i})">
-                ${i+1}. ${s.title}
+                ${i+1}. ${s.title} - ${s.artist}
             </div>
         `).join('');
     }
@@ -118,9 +115,9 @@
         const finalUrl = formatUrl(song.url);
         let currentPlayer = activePlayer === 1 ? audio1 : audio2;
         
-        document.getElementById('status').innerText = "Yükleniyor...";
+        document.getElementById('status').innerText = "Şarkı Açılıyor...";
         
-        // Güvenlik duvarı için ham veri ayarı
+        // Güvenlik ayarı
         currentPlayer.crossOrigin = "anonymous";
         currentPlayer.src = finalUrl;
         
@@ -128,18 +125,18 @@
             document.getElementById('play-btn').innerText = "⏸";
             document.getElementById('song-title').innerText = song.title;
             document.getElementById('artist-name').innerText = song.artist;
-            document.getElementById('status').innerText = "Çalıyor";
+            document.getElementById('status').innerText = "Oynatılıyor";
             renderPlaylist();
             setupCrossfade(currentPlayer);
         }).catch(err => {
-            document.getElementById('status').innerText = "Hata: Drive iznini kontrol et!";
+            document.getElementById('status').innerText = "Hata: Link Geçersiz!";
             console.error(err);
         });
     }
 
     function setupCrossfade(player) {
         player.ontimeupdate = function() {
-            if (player.duration - player.currentTime < (crossfadeTime / 1000)) {
+            if (player.duration && player.duration - player.currentTime < (crossfadeTime / 1000)) {
                 player.ontimeupdate = null; 
                 fadeOutAndNext(player);
             }
@@ -168,14 +165,18 @@
                 setupCrossfade(newPlayer);
                 renderPlaylist();
                 document.getElementById('song-title').innerText = songs[currentIndex].title;
+                document.getElementById('artist-name').innerText = songs[currentIndex].artist;
             }
         }, 300);
     }
 
     function togglePlay() {
         let p = activePlayer === 1 ? audio1 : audio2;
-        if (p.paused) { p.play(); document.getElementById('play-btn').innerText = "⏸"; }
-        else { p.pause(); document.getElementById('play-btn').innerText = "▶"; }
+        if (p.paused) { 
+            if(!p.src) { startSong(); } else { p.play(); document.getElementById('play-btn').innerText = "⏸"; }
+        } else { 
+            p.pause(); document.getElementById('play-btn').innerText = "▶"; 
+        }
     }
 
     function nextSong() { currentIndex = (currentIndex + 1) % songs.length; startSong(); }
