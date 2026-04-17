@@ -2,69 +2,70 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <title>Usta-ify Master v19.0</title>
+    <title>Usta-ify Executive v20.0</title>
     <link id="main-font-link" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
-        :root { --accent: #00f2ff; --bg: #050505; --text: #fff; --f-size: 14px; }
-        * { box-sizing: border-box; transition: background 0.6s ease, color 0.4s ease; }
+        :root { --accent: #00f2ff; --accent-mid: rgba(0, 242, 255, 0.5); --bg: #050505; --text: #fff; --f-size: 14px; }
+        * { box-sizing: border-box; transition: background 0.8s ease, color 0.4s ease, border-color 0.4s ease; }
         body { 
             background: var(--bg); color: var(--text); font-family: 'Montserrat', sans-serif; 
             font-size: var(--f-size); margin: 0; display: flex; height: 100vh; overflow: hidden; 
         }
 
-        /* ARKA PLAN TONLAMASI */
+        /* PREMIUM GRADIENT LAYER */
         #bg-grad {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: linear-gradient(180deg, var(--accent) -80%, var(--bg) 60%);
-            opacity: 0.2; pointer-events: none; z-index: 0;
+            background: linear-gradient(180deg, var(--accent) -30%, var(--bg) 90%);
+            opacity: 0.25; pointer-events: none; z-index: 0;
         }
 
         /* SIDEBAR */
-        #sidebar { width: 260px; background: #000; border-right: 1px solid rgba(255,255,255,0.05); display: flex; flex-direction: column; z-index: 100; }
-        .nav-link { padding: 15px 30px; cursor: pointer; display: flex; align-items: center; gap: 15px; font-weight: 700; opacity: 0.5; }
+        #sidebar { width: 280px; background: #000; border-right: 1px solid rgba(255,255,255,0.05); display: flex; flex-direction: column; z-index: 100; padding-bottom: 20px; }
+        .nav-link { padding: 12px 30px; cursor: pointer; display: flex; align-items: center; gap: 15px; font-weight: 700; opacity: 0.5; font-size: 0.9em; }
         .nav-link.active, .nav-link:hover { opacity: 1; color: var(--accent); }
+        .pl-sub-link { padding: 8px 50px; cursor: pointer; font-size: 0.85em; opacity: 0.4; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .pl-sub-link:hover { opacity: 1; color: var(--accent); }
 
         /* ANA İÇERİK */
         #main-content { flex: 1; overflow-y: auto; padding: 40px; padding-bottom: 150px; z-index: 1; }
-        .song-row { display: grid; grid-template-columns: 40px 2fr 1fr 100px; padding: 15px 20px; border-radius: 12px; margin-bottom: 5px; cursor: pointer; }
+        .song-row { display: grid; grid-template-columns: 40px 2fr 1fr 120px; padding: 15px 20px; border-radius: 12px; margin-bottom: 5px; cursor: pointer; }
         .song-row:hover { background: rgba(255,255,255,0.05); }
-        .song-row.playing { background: rgba(255,255,255,0.1); color: var(--accent); border-left: 3px solid var(--accent); }
+        .song-row.playing { background: rgba(255,255,255,0.08); color: var(--accent); }
 
-        /* MODAL PANELLER (X BUTONLU) */
+        /* MODALS */
         .full-modal {
-            position: fixed; top: 0; left: 260px; right: 0; bottom: 0;
+            position: fixed; top: 0; left: 280px; right: 0; bottom: 0;
             background: rgba(5,5,5,0.98); z-index: 500; display: none; padding: 60px;
-            backdrop-filter: blur(20px);
+            backdrop-filter: blur(30px);
         }
         .close-x { position: absolute; top: 30px; right: 40px; font-size: 35px; cursor: pointer; opacity: 0.5; }
-        .close-x:hover { opacity: 1; color: var(--accent); }
 
         /* SAĞ PANEL */
         #right-panel { 
-            width: 380px; background: rgba(8,8,8,0.95); border-left: 1px solid rgba(255,255,255,0.05);
+            width: 380px; background: rgba(8,8,8,0.98); border-left: 1px solid rgba(255,255,255,0.05);
             position: fixed; top: 0; right: 0; bottom: 0; transform: translateX(100%); z-index: 200; padding: 30px;
         }
         #right-panel.open { transform: translateX(0); }
-        .premium-art { width: 100%; aspect-ratio: 1; border-radius: 20px; overflow: hidden; margin-bottom: 25px; box-shadow: 0 10px 40px #000; }
+        .premium-art { width: 100%; aspect-ratio: 1; border-radius: 20px; overflow: hidden; border: 1px solid rgba(255,255,255,0.1); margin-bottom: 20px; }
         .premium-art img { width: 100%; height: 100%; object-fit: cover; }
-
-        /* GİZLİ GİRİŞ */
-        .ghost-input { background: transparent; border: 1px dashed transparent; color: #fff; width: 100%; padding: 10px; opacity: 0; }
-        .ghost-input:focus, .ghost-input:hover { opacity: 0.4; border-color: var(--accent); }
 
         /* DAR PLAYER BAR */
         #player-bar { 
             position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
-            width: 75%; height: 90px; background: rgba(15,15,15,0.9);
-            border-radius: 45px; border: 1px solid rgba(255,255,255,0.1);
+            width: 70%; max-width: 900px; height: 100px; background: rgba(15,15,15,0.85);
+            border-radius: 50px; border: 1px solid var(--accent-mid);
             display: flex; align-items: center; padding: 0 40px; z-index: 1000;
+            backdrop-filter: blur(20px);
         }
-        .bar-bg { flex: 1; height: 5px; background: rgba(255,255,255,0.1); border-radius: 10px; cursor: pointer; margin: 0 20px; overflow: hidden; }
-        #bar-fill { height: 100%; background: var(--accent); width: 0%; box-shadow: 0 0 15px var(--accent); }
+        .bar-bg { flex: 1; height: 6px; background: rgba(255,255,255,0.1); border-radius: 10px; cursor: pointer; margin: 0 20px; position: relative; }
+        #bar-fill { height: 100%; background: var(--accent); width: 0%; border-radius: 10px; box-shadow: 0 0 15px var(--accent); }
 
-        /* AYARLAR */
-        .setting-row { margin-bottom: 25px; display: flex; flex-direction: column; gap: 10px; max-width: 400px; }
-        input[type="color"], select { background: #111; color: #fff; border: 1px solid #333; padding: 12px; border-radius: 8px; }
+        .ctrl-btn { cursor: pointer; opacity: 0.6; font-size: 18px; }
+        .ctrl-btn.active { opacity: 1; color: var(--accent); text-shadow: 0 0 10px var(--accent); }
+        .ctrl-btn:hover { opacity: 1; }
+
+        .ghost-input { background: transparent; border: none; color: #fff; width: 100%; padding: 10px; opacity: 0.2; }
+        .ghost-input:focus { opacity: 1; }
     </style>
 </head>
 <body>
@@ -72,54 +73,65 @@
 <div id="bg-grad"></div>
 
 <div id="sidebar">
-    <div style="padding: 40px 30px; font-weight: 900; color: var(--accent); font-size: 24px; letter-spacing: -1px;">USTA-IFY</div>
+    <div style="padding: 40px 30px; font-weight: 900; color: var(--accent); font-size: 24px;">USTA-IFY</div>
     <div class="nav-link active" onclick="showView('all', this)"><span>🏠</span><span>HAVUZ</span></div>
     <div class="nav-link" onclick="showView('fav', this)"><span>💖</span><span>FAVORİLER</span></div>
-    <div class="nav-link" onclick="toggleModal('playlist-modal')"><span>📂</span><span>PLAYLISTLER</span></div>
-    <div class="nav-link" onclick="toggleModal('db-modal')"><span>👤</span><span>ARŞİV</span></div>
-    <div class="nav-link" onclick="toggleModal('settings-modal')"><span>⚙️</span><span>AYARLAR</span></div>
-    <div class="nav-link" onclick="toggleRight()"><span>📑</span><span>DETAYLAR</span></div>
+    
+    <div style="margin-top: 20px;">
+        <div class="nav-link" onclick="toggleModal('playlist-modal')"><span>📂</span><span>LİSTE YÖNETİMİ</span></div>
+        <div id="sidebar-playlists"></div>
+    </div>
+
+    <div style="margin-top: auto;">
+        <div class="nav-link" onclick="toggleModal('db-modal')"><span>👤</span><span>ARŞİV</span></div>
+        <div class="nav-link" onclick="toggleModal('settings-modal')"><span>⚙️</span><span>AYARLAR</span></div>
+    </div>
 </div>
 
 <div id="main-content">
-    <h1 id="view-title" style="font-size: 55px; font-weight: 900; margin: 0 0 40px 0;">HAVUZ</h1>
+    <h1 id="view-title" style="font-size: 50px; font-weight: 900; margin-bottom: 40px;">HAVUZ</h1>
     <div id="song-body"></div>
 </div>
 
 <div id="settings-modal" class="full-modal">
     <span class="close-x" onclick="toggleModal('settings-modal')">✕</span>
-    <h1 style="font-size: 40px;">AYARLAR</h1>
-    <div class="setting-row">
-        <label>Bukalemun Modu (Kapak Rengi)</label>
-        <input type="checkbox" id="cham-mode" checked onchange="applyTheme()">
-    </div>
-    <div class="setting-row">
-        <label>Manuel Renk Paleti</label>
-        <input type="color" id="manual-color" value="#00f2ff" oninput="applyTheme()">
-    </div>
-    <div class="setting-row">
-        <label>Yazı Fontu</label>
-        <select id="font-family" onchange="updateFont(this.value)">
-            <option value="Montserrat">Montserrat</option>
-            <option value="Roboto">Roboto</option>
-            <option value="Poppins">Poppins</option>
-            <option value="Bebas Neue">Bebas Neue</option>
-        </select>
-    </div>
-    <div class="setting-row">
-        <label>Yazı Büyüklüğü</label>
-        <input type="range" min="12" max="22" value="14" oninput="updateFSize(this.value)">
+    <h1>AYARLAR</h1>
+    <div style="max-width: 400px; display: flex; flex-direction: column; gap: 30px;">
+        <div>
+            <label>Bukalemun Modu (Resme Göre Renk)</label><br>
+            <input type="checkbox" id="cham-mode" checked onchange="applyTheme()">
+        </div>
+        <div>
+            <label>Manuel Renk Paleti (Premium Geçiş)</label><br>
+            <input type="color" id="manual-color" value="#00f2ff" oninput="applyTheme()">
+        </div>
+        <div>
+            <label>Crossfade Süresi: <span id="cf-val">3</span>s</label><br>
+            <input type="range" min="0" max="15" value="3" oninput="updateCF(this.value)">
+        </div>
+        <div>
+            <label>Font Seçimi</label><br>
+            <select id="font-family" onchange="updateFont(this.value)" style="width:100%; padding:10px; background:#111; color:#fff;">
+                <option value="Montserrat">Montserrat</option>
+                <option value="Poppins">Poppins</option>
+                <option value="Roboto">Roboto</option>
+                <option value="Bebas Neue">Bebas Neue</option>
+            </select>
+        </div>
+        <div>
+            <label>Yazı Ölçeği</label><br>
+            <input type="range" min="12" max="22" value="14" oninput="updateFSize(this.value)" style="width:100%;">
+        </div>
     </div>
 </div>
 
 <div id="playlist-modal" class="full-modal">
     <span class="close-x" onclick="toggleModal('playlist-modal')">✕</span>
-    <h1>ÇALMA LİSTELERİ</h1>
-    <div style="display: flex; gap: 10px; margin-bottom: 30px;">
-        <input type="text" id="pl-name" placeholder="Liste Adı..." style="background:#111; color:#fff; border:1px solid #333; padding:15px; border-radius:10px; flex:1">
-        <button onclick="createPL()" style="background:var(--accent); color:#000; border:none; padding:0 30px; border-radius:10px; font-weight:bold; cursor:pointer">OLUŞTUR</button>
+    <h1>PLAYLIST OLUŞTUR</h1>
+    <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+        <input type="text" id="pl-name" placeholder="Yeni Liste Adı..." style="flex:1; padding:15px; background:#111; border:1px solid #333; color:#fff; border-radius:10px;">
+        <button onclick="createPL()" style="padding:0 30px; background:var(--accent); border:none; border-radius:10px; font-weight:bold; cursor:pointer;">EKLE</button>
     </div>
-    <div id="pl-list" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap:20px"></div>
 </div>
 
 <div id="db-modal" class="full-modal">
@@ -130,31 +142,36 @@
         <input type="text" id="db-name" placeholder="İsim">
         <input type="text" id="db-img" placeholder="Resim URL">
     </div>
-    <button onclick="saveDB()" style="padding:15px 40px; background:var(--accent); border:none; font-weight:bold; cursor:pointer; border-radius:10px">ARŞİVE EKLE</button>
-    <div id="db-list" style="margin-top:30px; display:grid; grid-template-columns:repeat(5, 1fr); gap:15px"></div>
+    <button onclick="saveDB()" style="padding:15px; background:var(--accent); border:none; width:200px; font-weight:bold; cursor:pointer; border-radius:10px">KAYDET</button>
+    <div id="db-list" style="margin-top:30px; display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:15px"></div>
 </div>
 
 <div id="right-panel">
     <span class="close-x" onclick="toggleRight()">✕</span>
     <div class="premium-art" id="main-art" onclick="updateArt()"></div>
     <div id="artist-chips"></div>
-    <input type="text" id="credits-input" class="ghost-input" placeholder="#etiketle..." oninput="parseHashtags()">
-    <textarea id="desc-input" class="ghost-input" style="height:120px; margin-top:20px; opacity:0.1" placeholder="Notlar..." oninput="saveMeta()"></textarea>
+    <input type="text" id="credits-input" class="ghost-input" placeholder="#tagle..." oninput="parseHashtags()">
+    <textarea id="desc-input" class="ghost-input" style="height:150px; margin-top:20px" placeholder="Şarkı notları..." oninput="saveMeta()"></textarea>
 </div>
 
 <div id="player-bar">
-    <div style="width:220px; display:flex; align-items:center; gap:15px">
-        <div id="mini-art" style="width:50px; height:50px; border-radius:12px; background:#222; overflow:hidden"></div>
+    <div style="width:200px; display:flex; align-items:center; gap:12px">
+        <div id="mini-art" style="width:45px; height:45px; border-radius:10px; background:#222; overflow:hidden"></div>
         <div style="overflow:hidden">
-            <div id="bar-title" style="font-weight:900; font-size:14px; white-space:nowrap">Şarkı Seç</div>
-            <div id="bar-artist" style="font-size:11px; opacity:0.4">Usta-ify</div>
+            <div id="bar-title" style="font-weight:900; font-size:13px; white-space:nowrap">Şarkı Seç</div>
+            <div id="bar-artist" style="font-size:10px; opacity:0.4">Usta-ify</div>
         </div>
     </div>
+
     <div style="flex:1; display:flex; flex-direction:column; align-items:center">
-        <div style="display:flex; align-items:center; gap:25px; margin-bottom:10px">
-            <span onclick="prev()" style="cursor:pointer; font-size:20px">⏮</span>
-            <div onclick="togglePlay()" id="play-btn" style="width:45px; height:45px; background:#fff; color:#000; border-radius:50%; display:flex; align-items:center; justify-content:center; cursor:pointer">▶</div>
-            <span onclick="next()" style="cursor:pointer; font-size:20px">⏭</span>
+        <div style="display:flex; align-items:center; gap:20px; margin-bottom:8px">
+            <span onclick="toggleShuffle()" id="shuf-btn" class="ctrl-btn">🔀</span>
+            <span onclick="skip(-10)" class="ctrl-btn">⏪</span>
+            <span onclick="prev()" class="ctrl-btn" style="font-size:24px">⏮</span>
+            <div onclick="togglePlay()" id="play-btn" style="width:45px; height:45px; background:#fff; color:#000; border-radius:50%; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:20px">▶</div>
+            <span onclick="next()" class="ctrl-btn" style="font-size:24px">⏭</span>
+            <span onclick="skip(10)" class="ctrl-btn">⏩</span>
+            <span onclick="toggleRepeat()" id="rep-btn" class="ctrl-btn">🔁</span>
         </div>
         <div style="width:100%; display:flex; align-items:center">
             <span id="cur-t" style="font-size:10px; opacity:0.5; width:35px">0:00</span>
@@ -162,19 +179,21 @@
             <span id="dur-t" style="font-size:10px; opacity:0.5; width:35px">0:00</span>
         </div>
     </div>
+
     <div style="width:150px; text-align:right">
-        <input type="range" min="0" max="1" step="0.01" value="1" oninput="setVol(this.value)" style="accent-color:var(--accent); width:80px">
+        <input type="range" min="0" max="1" step="0.01" value="1" oninput="setVol(this.value)" style="accent-color:var(--accent); width:70px">
     </div>
 </div>
 
-<audio id="player-a"></audio><audio id="player-b"></audio>
+<audio id="pa"></audio><audio id="pb"></audio>
 
 <script>
     let allSongs = [], currentQueue = [], favorites = JSON.parse(localStorage.getItem('u_f')) || [];
     let playlists = JSON.parse(localStorage.getItem('u_pl')) || {}, artistDB = JSON.parse(localStorage.getItem('u_db')) || {};
     let songMeta = JSON.parse(localStorage.getItem('u_m')) || {}, currentIdx = 0, activeP = 'a', cfS = 3;
+    let isShuffle = false, repeatMode = 0; // 0: No, 1: Loop all, 2: Loop one
 
-    const pa = document.getElementById('player-a'), pb = document.getElementById('player-b');
+    const pa = document.getElementById('pa'), pb = document.getElementById('pb');
 
     async function init() {
         const id = "1wmpmxKjl-EFhiwqEShsPYx9VjiXfEmqvfdlI2k0Bkq8";
@@ -187,10 +206,10 @@
         requestAnimationFrame(sync);
     }
 
-    // RENK & TEMA MOTORU
     function applyTheme(imgUrl = null) {
         const isCham = document.getElementById('cham-mode').checked;
         const manual = document.getElementById('manual-color').value;
+        let targetColor = manual;
 
         if(isCham && imgUrl) {
             const img = new Image(); img.crossOrigin = "Anonymous"; img.src = imgUrl;
@@ -198,43 +217,48 @@
                 const canvas = document.createElement('canvas'); const ctx = canvas.getContext('2d');
                 canvas.width = 1; canvas.height = 1; ctx.drawImage(img, 0, 0, 1, 1);
                 const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data;
-                const col = `rgb(${r},${g},${b})`;
-                document.documentElement.style.setProperty('--accent', col);
-                const br = (r*299 + g*587 + b*114)/1000;
-                document.documentElement.style.setProperty('--text', br > 150 ? '#000' : '#fff');
+                targetColor = `rgb(${r},${g},${b})`;
+                setVars(targetColor, r, g, b);
             };
         } else {
-            document.documentElement.style.setProperty('--accent', manual);
-            document.documentElement.style.setProperty('--text', '#fff');
+            const r = parseInt(targetColor.slice(1,3), 16), g = parseInt(targetColor.slice(3,5), 16), b = parseInt(targetColor.slice(5,7), 16);
+            setVars(targetColor, r, g, b);
         }
     }
 
-    // FONT AYARLARI
+    function setVars(col, r, g, b) {
+        document.documentElement.style.setProperty('--accent', col);
+        document.documentElement.style.setProperty('--accent-mid', `rgba(${r},${g},${b}, 0.3)`);
+        const br = (r*299 + g*587 + b*114)/1000;
+        document.documentElement.style.setProperty('--text', br > 160 ? '#000' : '#fff');
+    }
+
     function updateFont(f) {
         document.getElementById('main-font-link').href = `https://fonts.googleapis.com/css2?family=${f.replace(' ','+')}:wght@400;700;900&display=swap`;
         document.body.style.fontFamily = `'${f}', sans-serif`;
     }
     function updateFSize(s) { document.documentElement.style.setProperty('--f-size', s + 'px'); }
+    function updateCF(v) { cfS = parseInt(v); document.getElementById('cf-val').innerText = v; }
 
-    // ÇALMA LİSTESİ SİSTEMİ
+    // PLAYLISTS IN SIDEBAR
     function createPL() {
         const name = document.getElementById('pl-name').value;
         if(name && !playlists[name]) { playlists[name] = []; localStorage.setItem('u_pl', JSON.stringify(playlists)); updatePLUI(); }
     }
     function updatePLUI() {
-        document.getElementById('pl-list').innerHTML = Object.keys(playlists).map(k => `
-            <div style="background:#111; padding:20px; border-radius:15px; text-align:center; position:relative">
-                <div style="font-size:40px">📂</div>
-                <div style="font-weight:bold; margin-top:10px">${k}</div>
-                <div onclick="showPL('${k}')" style="color:var(--accent); cursor:pointer; margin-top:10px">AÇ</div>
-                <div onclick="delPL('${k}')" style="position:absolute; top:10px; right:10px; color:red; cursor:pointer">✕</div>
-            </div>
+        const container = document.getElementById('sidebar-playlists');
+        container.innerHTML = Object.keys(playlists).map(k => `
+            <div class="pl-sub-link" onclick="showPL('${k}')"># ${k}</div>
         `).join('');
     }
-    function showPL(name) { currentQueue = allSongs.filter(s => playlists[name].includes(s.url)); document.getElementById('view-title').innerText = name; renderSongs(); toggleModal('playlist-modal'); }
-    function delPL(k) { delete playlists[k]; localStorage.setItem('u_pl', JSON.stringify(playlists)); updatePLUI(); }
+    function showPL(name) {
+        currentQueue = allSongs.filter(s => playlists[name].includes(s.url));
+        document.getElementById('view-title').innerText = name;
+        renderSongs();
+        toggleModal('playlist-modal');
+    }
 
-    // SES MOTORU (MÜHÜRLÜ CROSSFADE)
+    // AUDIO ENGINE
     function playIdx(i) {
         currentIdx = i; const s = currentQueue[currentIdx];
         const cur = activeP === 'a' ? pa : pb;
@@ -250,7 +274,7 @@
             document.getElementById('bar-fill').style.width = (cur.currentTime/cur.duration*100) + "%";
             document.getElementById('cur-t').innerText = formatT(cur.currentTime);
             document.getElementById('dur-t').innerText = formatT(cur.duration);
-            if(cur.duration - cur.currentTime <= cfS && !cur.dataset.fading) {
+            if(cur.duration - cur.currentTime <= cfS && !cur.dataset.fading && cfS > 0) {
                 cur.dataset.fading = "true"; crossFade();
             }
         }
@@ -261,7 +285,10 @@
         const oldP = activeP === 'a' ? pa : pb;
         activeP = activeP === 'a' ? 'b' : 'a';
         const newP = activeP === 'a' ? pa : pb;
-        currentIdx = (currentIdx + 1) % currentQueue.length;
+        
+        if(isShuffle) { currentIdx = Math.floor(Math.random() * currentQueue.length); }
+        else if(repeatMode !== 2) { currentIdx = (currentIdx + 1) % currentQueue.length; }
+        
         const s = currentQueue[currentIdx];
         newP.src = s.url; newP.volume = 0; newP.play();
         let v = 0;
@@ -284,7 +311,17 @@
         applyTheme(m.art); parseHashtags(); renderSongs();
     }
 
-    // ARŞİV VE HASHTAG
+    // CONTROLS
+    function togglePlay() { const c = activeP==='a'?pa:pb; c.paused ? c.play() : c.pause(); document.getElementById('play-btn').innerText = c.paused ? '▶' : '⏸'; }
+    function next() { crossFade(); }
+    function prev() { currentIdx = (currentIdx - 1 + currentQueue.length) % currentQueue.length; playIdx(currentIdx); }
+    function skip(v) { (activeP==='a'?pa:pb).currentTime += v; }
+    function seek(e) { const c = activeP==='a'?pa:pb; c.currentTime = (e.offsetX / e.currentTarget.offsetWidth) * c.duration; }
+    function setVol(v) { pa.volume = pb.volume = v; }
+    function toggleShuffle() { isShuffle = !isShuffle; document.getElementById('shuf-btn').classList.toggle('active', isShuffle); }
+    function toggleRepeat() { repeatMode = (repeatMode + 1) % 3; document.getElementById('rep-btn').innerText = repeatMode === 2 ? '🔂' : '🔁'; document.getElementById('rep-btn').classList.toggle('active', repeatMode > 0); }
+
+    // ARŞİV & MODALS
     function saveDB() {
         const tag = document.getElementById('db-tag').value.toLowerCase().replace('#','');
         const name = document.getElementById('db-name').value;
@@ -293,10 +330,10 @@
     }
     function updateDBUI() {
         document.getElementById('db-list').innerHTML = Object.keys(artistDB).map(k => `
-            <div style="text-align:center; background:rgba(255,255,255,0.03); padding:10px; border-radius:10px">
-                <img src="${artistDB[k].img}" style="width:40px; height:40px; border-radius:50%">
-                <div style="font-size:10px; font-weight:bold">#${k}</div>
-                <div onclick="delDB('${k}')" style="color:red; cursor:pointer; font-size:9px">SİL</div>
+            <div style="text-align:center; background:rgba(255,255,255,0.03); padding:15px; border-radius:10px">
+                <img src="${artistDB[k].img}" style="width:50px; height:50px; border-radius:50%">
+                <div style="font-size:11px; font-weight:bold; margin-top:5px">#${k}</div>
+                <div onclick="delDB('${k}')" style="color:red; cursor:pointer; font-size:10px; margin-top:5px">SİL</div>
             </div>
         `).join('');
     }
@@ -309,8 +346,6 @@
         }).join('');
         saveMeta();
     }
-
-    // YARDIMCI UI
     function toggleModal(id) {
         const m = document.getElementById(id); const open = m.style.display === 'block';
         document.querySelectorAll('.full-modal').forEach(x => x.style.display = 'none');
@@ -329,28 +364,24 @@
                 <div style="opacity:0.3">${i+1}</div>
                 <div style="font-weight:700">${s.title}</div>
                 <div style="opacity:0.5">${s.artist}</div>
-                <div style="display:flex; gap:10px">
-                    <span onclick="event.stopPropagation(); toggleFav('${s.url}')">${favorites.includes(s.url)?'💖':'🤍'}</span>
-                    <span onclick="event.stopPropagation(); addToPL('${s.url}')">➕</span>
+                <div style="display:flex; gap:15px; justify-content:flex-end">
+                    <span onclick="event.stopPropagation(); toggleFav('${s.url}')" style="cursor:pointer">${favorites.includes(s.url)?'💖':'🤍'}</span>
+                    <span onclick="event.stopPropagation(); addToPL('${s.url}')" style="cursor:pointer">➕</span>
                 </div>
             </div>
         `).join('');
     }
-    function addToPL(url) { const n = prompt("Hangi Liste?"); if(playlists[n]) { playlists[n].push(url); localStorage.setItem('u_pl', JSON.stringify(playlists)); alert("Eklendi!"); } }
+    function addToPL(url) { const n = prompt("Playlist Adı?"); if(playlists[n]) { playlists[n].push(url); localStorage.setItem('u_pl', JSON.stringify(playlists)); } }
     function toggleFav(u) { favorites.includes(u) ? favorites=favorites.filter(x=>x!==u) : favorites.push(u); localStorage.setItem('u_f', JSON.stringify(favorites)); renderSongs(); }
-    function togglePlay() { const c = activeP==='a'?pa:pb; c.paused ? c.play() : c.pause(); document.getElementById('play-btn').innerText = c.paused ? '▶' : '⏸'; }
-    function next() { crossFade(); }
-    function prev() { currentIdx = (currentIdx - 1 + currentQueue.length) % currentQueue.length; playIdx(currentIdx); }
-    function seek(e) { const c = activeP==='a'?pa:pb; c.currentTime = (e.offsetX / e.currentTarget.offsetWidth) * c.duration; }
-    function setVol(v) { pa.volume = pb.volume = v; }
     function formatT(s) { const m=Math.floor(s/60), sc=Math.floor(s%60); return `${m}:${sc<10?'0':''}${sc}`; }
-    function updateArt() { const u = prompt("URL:"); if(u) { document.getElementById('main-art').innerHTML=`<img src="${u}">`; saveMeta(); applyTheme(u); } }
+    function updateArt() { const u = prompt("Resim URL:"); if(u) { document.getElementById('main-art').innerHTML=`<img src="${u}">`; saveMeta(); applyTheme(u); } }
     function saveMeta() {
         const s = currentQueue[currentIdx]; const img = document.querySelector('#main-art img');
+        if(!s) return;
         songMeta[s.url] = { art: img?img.src:'', credits: document.getElementById('credits-input').value, desc: document.getElementById('desc-input').value };
         localStorage.setItem('u_m', JSON.stringify(songMeta));
     }
-    function delDB(k) { delete artistDB[k]; localStorage.setItem('u_db', JSON.stringify(artistDB)); updateDBUI(); }
+    function delDB(k) { delete artistDB[k]; localStorage.setItem('u_db', JSON.stringify(artistDB)); updateDBUI(); parseHashtags(); }
 
     window.onload = init;
 </script>
