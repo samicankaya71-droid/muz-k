@@ -11,12 +11,10 @@
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         body { background: var(--bg); color: var(--text); font-family: 'Montserrat', sans-serif; font-size: var(--f-size); margin: 0; display: flex; height: 100vh; overflow: hidden; position: relative; }
 
-        /* ARKA PLAN ANİMASYONU (AURORA) */
         #aurora { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; filter: blur(100px); opacity: 0.4; transition: all 2s ease; overflow: hidden; }
         .blob { position: absolute; width: 600px; height: 600px; background: var(--accent); border-radius: 50%; animation: move 20s infinite alternate; opacity: 0.6; }
         @keyframes move { from { transform: translate(-10%, -10%); } to { transform: translate(30%, 30%); } }
 
-        /* CAM EFEKTİ (GLASSMORPHISM) */
         #sidebar, #player-bar, #right-panel, .full-modal { backdrop-filter: blur(25px); background: rgba(0,0,0,0.6) !important; }
 
         #sidebar { 
@@ -36,9 +34,27 @@
         .btn-edit { background: var(--accent-mid); border: 1px solid var(--accent); color: var(--accent); border-radius: 10px; padding: 8px 15px; cursor: pointer; font-weight: bold; font-size: 12px; }
         .btn-edit.active { background: var(--accent); color: #000; }
 
-        /* ŞARKI ROW - METİN KISITLAMALARI KALDIRILDI */
-        .song-row { display: grid; grid-template-columns: 40px 2fr 1fr 100px; padding: 12px 20px; border-radius: 12px; margin-bottom: 5px; cursor: pointer; border: 1px solid transparent; align-items: center; }
+        /* GÜNCELLENMİŞ ŞARKI SATIRI - SAĞA AKIŞ KURALLARI */
+        .song-row { 
+            display: grid; 
+            grid-template-columns: 30px 1.5fr 1fr 50px; 
+            padding: 12px 20px; 
+            border-radius: 12px; 
+            margin-bottom: 5px; 
+            cursor: pointer; 
+            border: 1px solid transparent; 
+            align-items: center;
+            gap: 15px;
+        }
+        .song-row:hover { background: rgba(255,255,255,0.05); }
         .song-row.playing { background: var(--accent-mid); color: var(--accent); }
+        
+        .song-row div:nth-child(2), .song-row div:nth-child(3) {
+            white-space: nowrap; 
+            overflow: hidden; 
+            text-overflow: ellipsis; 
+        }
+
         .drag-handle { cursor: grab; opacity: 0.3; display: none; }
         body.edit-mode .drag-handle { display: block; }
 
@@ -49,7 +65,6 @@
         }
         #right-panel.open { transform: translateX(0); }
 
-        /* KAPAK FOTOĞRAFI ALANI TASARIMI */
         .premium-art { 
             width: 100%; aspect-ratio: 1/1; border-radius: 20px; 
             background: rgba(255,255,255,0.05); display: flex; 
@@ -70,10 +85,8 @@
         .full-modal { position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 6000; display: none; padding: 60px; overflow-y: auto; }
         .close-x { position: absolute; top: 30px; right: 40px; font-size: 35px; cursor: pointer; }
 
-        /* SPEED & SKIP BTNS */
         .speed-btn { font-size: 10px; font-weight: 900; background: rgba(255,255,255,0.1); padding: 4px 8px; border-radius: 5px; cursor: pointer; }
         .skip-btn { font-size: 18px; opacity: 0.7; cursor: pointer; }
-        .skip-btn:hover { opacity: 1; color: var(--accent); }
 
         @media (max-width: 768px) {
             #sidebar { position: fixed; left: -280px; height: 100%; }
@@ -81,6 +94,7 @@
             #player-bar { width: 95%; bottom: 10px; height: 85px; padding: 0 15px; }
             .pc-controls { display: none !important; }
             .mobile-controls { display: block !important; }
+            .song-row { grid-template-columns: 20px 1fr 1fr 40px; gap: 10px; padding: 10px; }
         }
     </style>
 </head>
@@ -133,9 +147,9 @@
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
             <span onclick="skipTime(-10)" class="skip-btn">⏪ 10s</span>
             <div style="display:flex; align-items:center; gap:20px;">
-                <span onclick="manualPrev()" style="font-size:30px;">⏮</span>
-                <div onclick="togglePlay()" class="play-sync" style="width:65px; height:65px; background:#fff; color:#000; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:25px;">▶</div>
-                <span onclick="manualNext()" style="font-size:30px;">⏭</span>
+                <span onclick="manualPrev()" style="font-size:30px; cursor:pointer">⏮</span>
+                <div onclick="togglePlay()" class="play-sync" style="width:65px; height:65px; background:#fff; color:#000; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:25px; cursor:pointer">▶</div>
+                <span onclick="manualNext()" style="font-size:30px; cursor:pointer">⏭</span>
             </div>
             <span onclick="skipTime(10)" class="skip-btn">10s ⏩</span>
         </div>
@@ -149,20 +163,20 @@
     <div style="width:280px; display:flex; align-items:center; gap:15px; cursor:pointer;" onclick="toggleRight(true)">
         <div id="mini-art" style="width:55px; height:55px; border-radius:12px; background:#222; overflow:hidden"></div>
         <div style="overflow:hidden">
-            <div id="bar-title" style="font-weight:900; font-size:14px;">Şarkı Seç</div>
-            <div id="bar-artist" style="font-size:11px; opacity:0.6">Usta-ify</div>
+            <div id="bar-title" style="font-weight:900; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Şarkı Seç</div>
+            <div id="bar-artist" style="font-size:11px; opacity:0.6; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Usta-ify</div>
         </div>
     </div>
     
     <div style="flex:1; display:flex; flex-direction:column; align-items:center">
         <div style="display:flex; align-items:center; gap:25px; margin-bottom:8px">
-            <span onclick="toggleShuffle()" class="ctrl-btn shuf-sync">🔀</span>
+            <span onclick="toggleShuffle()" class="ctrl-btn shuf-sync" style="cursor:pointer">🔀</span>
             <span onclick="skipTime(-10)" class="skip-btn" style="font-size:14px;">-10s</span>
             <span onclick="manualPrev()" style="font-size:22px; cursor:pointer;">⏮</span>
             <div onclick="togglePlay()" class="play-sync" style="width:45px; height:45px; background:#fff; color:#000; border-radius:50%; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:20px;">▶</div>
             <span onclick="manualNext()" style="font-size:22px; cursor:pointer;">⏭</span>
             <span onclick="skipTime(10)" class="skip-btn" style="font-size:14px;">+10s</span>
-            <span onclick="toggleRepeat()" class="ctrl-btn rep-sync">🔁</span>
+            <span onclick="toggleRepeat()" class="ctrl-btn rep-sync" style="cursor:pointer">🔁</span>
         </div>
         <div style="width:100%; display:flex; align-items:center">
             <span id="pc-cur" style="font-size:11px; opacity:0.5; width:40px; text-align:right">0:00</span>
@@ -180,28 +194,12 @@
 <div id="settings-modal" class="full-modal">
     <span class="close-x" onclick="toggleModal('settings-modal')">✕</span>
     <h1 style="font-size: 40px; font-weight: 900;">PREMIUM AYARLAR</h1>
-    
     <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap:40px; margin-top:40px;">
         <div style="background:rgba(255,255,255,0.05); padding:30px; border-radius:20px;">
             <h3>🛠 SİSTEM</h3>
-            <button onclick="syncFromCloud()" style="width:100%; padding:15px; background:var(--accent); color:#000; border:none; border-radius:10px; font-weight:bold; cursor:pointer; margin-bottom:20px;">BULUTU ŞİMDİ SENKRONİZE ET</button>
+            <button onclick="syncFromCloud()" style="width:100%; padding:15px; background:var(--accent); color:#000; border:none; border-radius:10px; font-weight:bold; cursor:pointer; margin-bottom:20px;">BULUTU SENKRONİZE ET</button>
             <div style="margin-bottom:15px;"><label>Crossfade (sn): <span id="cf-val">3</span></label> <input type="range" min="0" max="10" value="3" oninput="updateCF(this.value)" style="width:100%"></div>
             <div><label>Uyku Zamanlayıcısı: <span id="timer-val">Kapalı</span></label> <input type="range" min="0" max="120" value="0" step="15" oninput="setSleepTimer(this.value)" style="width:100%"></div>
-        </div>
-
-        <div style="background:rgba(255,255,255,0.05); padding:30px; border-radius:20px;">
-            <h3>🎚 EKOLAYZIR (EQ)</h3>
-            <p style="opacity:0.5; font-size:12px;">Ses karakterini buradan ayarla.</p>
-            <div style="display:flex; justify-content:space-between; height:150px; align-items:flex-end; padding:20px 0;">
-                <input type="range" orient="vertical" min="-10" max="10" value="0" style="appearance:slider-vertical; width:20px; height:100%;">
-                <input type="range" orient="vertical" min="-10" max="10" value="3" style="appearance:slider-vertical; width:20px; height:100%;">
-                <input type="range" orient="vertical" min="-10" max="10" value="5" style="appearance:slider-vertical; width:20px; height:100%;">
-                <input type="range" orient="vertical" min="-10" max="10" value="2" style="appearance:slider-vertical; width:20px; height:100%;">
-                <input type="range" orient="vertical" min="-10" max="10" value="4" style="appearance:slider-vertical; width:20px; height:100%;">
-            </div>
-            <div style="display:flex; justify-content:space-between; font-size:10px; opacity:0.5;">
-                <span>60Hz</span><span>250Hz</span><span>1kHz</span><span>4kHz</span><span>16kHz</span>
-            </div>
         </div>
     </div>
 </div>
@@ -231,24 +229,23 @@
     let isShuffle = false, repeatMode = 0, playbackSpeed = 1.0, sleepTimer = null;
 
     const pa = document.getElementById('pa'), pb = document.getElementById('pb');
-    let sortable = null;
 
     async function init() {
         await syncFromCloud();
         const id = "1wmpmxKjl-EFhiwqEShsPYx9VjiXfEmqvfdlI2k0Bkq8";
-        const res = await fetch(`https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:json`);
-        const text = await res.text();
-        const json = JSON.parse(text.substring(47).slice(0, -2));
-        allSongs = json.table.rows.map(r => ({ title: r.c[0]?.v, artist: r.c[1]?.v, url: r.c[2]?.v })).filter(s => s.url?.includes('http'));
-        
-        showView('all'); 
-        updateDBUI(); 
-        updatePLUI();
-        initSortable();
-        requestAnimationFrame(sync);
+        try {
+            const res = await fetch(`https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:json`);
+            const text = await res.text();
+            const json = JSON.parse(text.substring(47).slice(0, -2));
+            allSongs = json.table.rows.map(r => ({ title: r.c[0]?.v, artist: r.c[1]?.v, url: r.c[2]?.v })).filter(s => s.url?.includes('http'));
+            showView('all'); 
+            updateDBUI(); 
+            updatePLUI();
+            initSortable();
+            requestAnimationFrame(sync);
+        } catch(e) { console.error("Veri çekilemedi."); }
     }
 
-    // --- PREMIUM ÖZELLİKLER ---
     function toggleEditMode() {
         document.body.classList.toggle('edit-mode');
         const btn = document.getElementById('edit-btn');
@@ -259,7 +256,7 @@
 
     function initSortable() {
         const el = document.getElementById('song-body');
-        sortable = Sortable.create(el, {
+        Sortable.create(el, {
             handle: '.drag-handle',
             animation: 150,
             onEnd: function (evt) {
@@ -271,42 +268,23 @@
 
     function toggleSpeed() {
         const speeds = [1.0, 1.25, 1.5, 2.0, 0.75];
-        let next = speeds[(speeds.indexOf(playbackSpeed) + 1) % speeds.length];
-        playbackSpeed = next;
+        playbackSpeed = speeds[(speeds.indexOf(playbackSpeed) + 1) % speeds.length];
         pa.playbackRate = pb.playbackRate = playbackSpeed;
         document.getElementById('speed-indicator').innerText = playbackSpeed + "x";
     }
 
-    function skipTime(sec) {
-        const cur = activeP === 'a' ? pa : pb;
-        cur.currentTime += sec;
-    }
+    function skipTime(sec) { (activeP === 'a' ? pa : pb).currentTime += sec; }
 
     function setSleepTimer(val) {
         if(sleepTimer) clearTimeout(sleepTimer);
         const mins = parseInt(val);
         document.getElementById('timer-val').innerText = mins === 0 ? "Kapalı" : mins + " dk";
-        if(mins > 0) {
-            sleepTimer = setTimeout(() => {
-                pa.pause(); pb.pause();
-                alert("Uyku zamanlayıcısı: Müzik durduruldu.");
-            }, mins * 60000);
-        }
+        if(mins > 0) sleepTimer = setTimeout(() => { pa.pause(); pb.pause(); alert("Uyku zamanlayıcısı aktif."); }, mins * 60000);
     }
 
-    // --- BULUT SENKRONİZASYON ---
     async function syncToCloud() {
-        document.getElementById('sync-status').innerText = "☁️ Senkronize...";
-        const data = {
-            u_f: localStorage.getItem('u_f'),
-            u_pl: localStorage.getItem('u_pl'),
-            u_db: localStorage.getItem('u_db'),
-            u_m: localStorage.getItem('u_m')
-        };
-        try {
-            await fetch(SYNC_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(data) });
-            setTimeout(() => { document.getElementById('sync-status').innerText = "✅ Bulut Güncel"; }, 1000);
-        } catch(e) { document.getElementById('sync-status').innerText = "❌ Hata"; }
+        const data = { u_f: localStorage.getItem('u_f'), u_pl: localStorage.getItem('u_pl'), u_db: localStorage.getItem('u_db'), u_m: localStorage.getItem('u_m') };
+        try { await fetch(SYNC_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(data) }); document.getElementById('sync-status').innerText = "✅ Bulut Güncel"; } catch(e) { }
     }
 
     async function syncFromCloud() {
@@ -314,23 +292,23 @@
             const res = await fetch(SYNC_URL);
             const cloudData = await res.json();
             if(cloudData) {
-                if(cloudData.u_f) { localStorage.setItem('u_f', cloudData.u_f); favorites = JSON.parse(cloudData.u_f); }
-                if(cloudData.u_pl) { localStorage.setItem('u_pl', cloudData.u_pl); playlists = JSON.parse(cloudData.u_pl); }
-                if(cloudData.u_db) { localStorage.setItem('u_db', cloudData.u_db); artistDB = JSON.parse(cloudData.u_db); }
-                if(cloudData.u_m) { localStorage.setItem('u_m', cloudData.u_m); songMeta = JSON.parse(cloudData.u_m); }
+                if(cloudData.u_f) favorites = JSON.parse(cloudData.u_f);
+                if(cloudData.u_pl) playlists = JSON.parse(cloudData.u_pl);
+                if(cloudData.u_db) artistDB = JSON.parse(cloudData.u_db);
+                if(cloudData.u_m) songMeta = JSON.parse(cloudData.u_m);
+                localStorage.setItem('u_f', cloudData.u_f); localStorage.setItem('u_pl', cloudData.u_pl);
+                localStorage.setItem('u_db', cloudData.u_db); localStorage.setItem('u_m', cloudData.u_m);
             }
-        } catch(e) { console.log("Bulut boş."); }
+        } catch(e) { }
     }
 
-    // --- PLAYER CORE ---
     function toggleLeft() { document.body.classList.toggle('left-open'); }
     function toggleRight(force) { 
-        const p = document.getElementById('right-panel');
-        const open = force !== undefined ? force : !p.classList.contains('open');
-        p.classList.toggle('open', open);
+        const open = force !== undefined ? force : !document.getElementById('right-panel').classList.contains('open');
+        document.getElementById('right-panel').classList.toggle('open', open);
         if(window.innerWidth > 768) document.body.classList.toggle('right-open', open);
     }
-    function toggleModal(id) { const m = document.getElementById(id); m.style.display = m.style.display === 'block' ? 'none' : 'block'; if(window.innerWidth<768) toggleLeft(); }
+    function toggleModal(id) { const m = document.getElementById(id); m.style.display = m.style.display === 'block' ? 'none' : 'block'; }
 
     function playIdx(i, isManual = true) {
         currentIdx = i; const s = currentQueue[currentIdx];
@@ -338,11 +316,9 @@
         const other = activeP === 'a' ? pb : pa;
         if(isManual) { 
             other.pause(); other.currentTime = 0; 
-            cur.src = s.url; cur.playbackRate = playbackSpeed;
-            cur.volume = 1; cur.play(); 
+            cur.src = s.url; cur.playbackRate = playbackSpeed; cur.play(); 
         }
         updateUI(s);
-        toggleRight(true);
     }
 
     function sync() {
@@ -352,9 +328,7 @@
             document.getElementById('pc-fill').style.width = document.getElementById('m-fill').style.width = perc;
             document.getElementById('pc-cur').innerText = document.getElementById('m-cur').innerText = formatT(cur.currentTime);
             document.getElementById('pc-dur').innerText = document.getElementById('m-dur').innerText = formatT(cur.duration);
-            if(cur.duration - cur.currentTime <= cfS && !cur.dataset.fading && cfS > 0) {
-                cur.dataset.fading = "true"; crossFade();
-            }
+            if(cur.duration - cur.currentTime <= cfS && !cur.dataset.fading && cfS > 0) { cur.dataset.fading = "true"; crossFade(); }
         }
         document.querySelectorAll('.play-sync').forEach(b => b.innerText = cur.paused ? '▶' : '⏸');
         requestAnimationFrame(sync);
@@ -388,37 +362,40 @@
         applyTheme(m.art); parseHashtags(); renderSongs();
     }
 
-    function applyTheme(imgUrl = null) {
-        if(imgUrl) {
-            const img = new Image(); img.crossOrigin = "Anonymous"; img.src = imgUrl;
-            img.onload = () => {
-                const canvas = document.createElement('canvas'); const ctx = canvas.getContext('2d');
-                canvas.width = 1; canvas.height = 1; ctx.drawImage(img, 0, 0, 1, 1);
-                const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data;
-                const col = `rgb(${r},${g},${b})`;
-                document.documentElement.style.setProperty('--accent', col);
-                document.documentElement.style.setProperty('--accent-mid', `rgba(${r},${g},${b}, 0.3)`);
-            };
-        }
+    function applyTheme(imgUrl) {
+        if(!imgUrl) return;
+        const img = new Image(); img.crossOrigin = "Anonymous"; img.src = imgUrl;
+        img.onload = () => {
+            const canvas = document.createElement('canvas'); const ctx = canvas.getContext('2d');
+            canvas.width = 1; canvas.height = 1; ctx.drawImage(img, 0, 0, 1, 1);
+            const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data;
+            document.documentElement.style.setProperty('--accent', `rgb(${r},${g},${b})`);
+            document.documentElement.style.setProperty('--accent-mid', `rgba(${r},${g},${b}, 0.3)`);
+        };
     }
 
-    function filterSongs() { const t = document.getElementById('search-input').value.toLowerCase(); currentQueue = allSongs.filter(s => s.title.toLowerCase().includes(t) || s.artist.toLowerCase().includes(t)); renderSongs(); }
+    function filterSongs() { 
+        const t = document.getElementById('search-input').value.toLowerCase(); 
+        currentQueue = allSongs.filter(s => s.title.toLowerCase().includes(t) || s.artist.toLowerCase().includes(t)); 
+        renderSongs(); 
+    }
     
     function showView(t, el) { 
         document.querySelectorAll('.nav-link').forEach(n=>n.classList.remove('active')); if(el) el.classList.add('active');
+        currentQueue = t==='all'?[...allSongs]:allSongs.filter(s=>favorites.includes(s.url)); 
         document.getElementById('view-title').innerText = t==='all'?'HAVUZ':'FAVORİLER';
-        currentQueue = t==='all'?[...allSongs]:allSongs.filter(s=>favorites.includes(s.url)); renderSongs();
-        if(window.innerWidth < 768) toggleLeft();
+        renderSongs();
     }
 
-    /* ŞARKI İSİMLERİ BURADA TAM GÖSTERİLECEK ŞEKİLDE DÜZENLENDİ */
     function renderSongs() {
         document.getElementById('song-body').innerHTML = currentQueue.map((s, i) => `
             <div class="song-row ${currentIdx===i?'playing':''}" onclick="playIdx(${i}, true)">
                 <div class="drag-handle">⣿</div>
-                <div style="font-weight:700; word-break:break-word; padding-right:10px;">${s.title}</div>
-                <div style="opacity:0.5; word-break:break-word;">${s.artist}</div>
-                <div onclick="event.stopPropagation(); toggleFav('${s.url}')" style="text-align:right; font-size:18px">${favorites.includes(s.url)?'💖':'🤍'}</div>
+                <div style="font-weight:700;">${s.title}</div>
+                <div style="opacity:0.5;">${s.artist}</div>
+                <div onclick="event.stopPropagation(); toggleFav('${s.url}')" style="text-align:right; font-size:18px">
+                    ${favorites.includes(s.url)?'💖':'🤍'}
+                </div>
             </div>
         `).join('');
     }
@@ -429,7 +406,7 @@
     }
     function updatePLUI() {
         document.getElementById('sidebar-playlists').innerHTML = Object.keys(playlists).map(k => `<div class="pl-item" onclick="showPL('${k}')"># ${k}</div>`).join('');
-        document.getElementById('pl-list-modal').innerHTML = Object.keys(playlists).map(k => `<div style="background:rgba(255,255,255,0.05); padding:25px; border-radius:20px; text-align:center;"><h3>${k}</h3><button onclick="showPL('${k}')" style="background:var(--accent); border:none; padding:10px 20px; border-radius:10px; cursor:pointer;">LİSTEYİ AÇ</button></div>`).join('');
+        document.getElementById('pl-list-modal').innerHTML = Object.keys(playlists).map(k => `<div style="background:rgba(255,255,255,0.05); padding:20px; border-radius:15px; text-align:center;"><h3>${k}</h3><button onclick="showPL('${k}')" style="background:var(--accent); border:none; padding:10px; border-radius:10px; cursor:pointer;">AÇ</button></div>`).join('');
     }
     function showPL(name) { currentQueue = allSongs.filter(s => playlists[name].includes(s.url)); document.getElementById('view-title').innerText = name; renderSongs(); toggleModal('playlist-modal'); }
 
@@ -437,8 +414,8 @@
     function manualNext() { playIdx((currentIdx + 1) % currentQueue.length, true); }
     function manualPrev() { playIdx((currentIdx - 1 + currentQueue.length) % currentQueue.length, true); }
     function seek(e) { (activeP==='a'?pa:pb).currentTime = (e.offsetX / e.currentTarget.offsetWidth) * (activeP==='a'?pa:pb).duration; }
-    function toggleShuffle() { isShuffle = !isShuffle; document.querySelectorAll('.shuf-sync').forEach(b => b.classList.toggle('active', isShuffle)); }
-    function toggleRepeat() { repeatMode = (repeatMode+1)%3; document.querySelectorAll('.rep-sync').forEach(b => b.innerText = repeatMode===2?'🔂':'🔁'); }
+    function toggleShuffle() { isShuffle = !isShuffle; }
+    function toggleRepeat() { repeatMode = (repeatMode+1)%3; }
     function setVol(v) { pa.volume = pb.volume = v; }
     function formatT(s) { const m=Math.floor(s/60), sc=Math.floor(s%60); return `${m}:${sc<10?'0':''}${sc}`; }
     function updateCF(v) { cfS = parseInt(v); document.getElementById('cf-val').innerText = v; }
@@ -448,14 +425,9 @@
         localStorage.setItem('u_f', JSON.stringify(favorites)); renderSongs(); syncToCloud();
     }
 
-    /* KAPAK GÜNCELLEME BURADA AKTİF EDİLDİ */
     function updateArt() { 
-        const u = prompt("Kapak Fotoğrafı URL'sini girin:"); 
-        if(u && u.trim() !== ""){ 
-            document.getElementById('main-art').innerHTML = `<img src="${u}">`; 
-            saveMeta(); 
-            applyTheme(u); 
-        } 
+        const u = prompt("Kapak Fotoğrafı URL'si:"); 
+        if(u) { document.getElementById('main-art').innerHTML = `<img src="${u}">`; saveMeta(); applyTheme(u); } 
     }
     
     function saveMeta() { 
@@ -470,11 +442,11 @@
         const t = document.getElementById('db-tag').value.toLowerCase().replace('#',''), n=document.getElementById('db-name').value, i=document.getElementById('db-img').value; 
         if(t&&n){ artistDB[t]={name:n, img:i}; localStorage.setItem('u_db', JSON.stringify(artistDB)); updateDBUI(); syncToCloud(); } 
     }
-    function updateDBUI() { document.getElementById('db-list').innerHTML = Object.keys(artistDB).map(k=>`<div style="text-align:center; background:rgba(255,255,255,0.05); padding:15px; border-radius:15px"><img src="${artistDB[k].img}" style="width:60px;height:60px;border-radius:50%; object-fit:cover;"><div style="font-size:12px; font-weight:bold; margin-top:10px;">#${k}</div></div>`).join(''); }
+    function updateDBUI() { document.getElementById('db-list').innerHTML = Object.keys(artistDB).map(k=>`<div style="text-align:center; background:rgba(255,255,255,0.05); padding:10px; border-radius:15px"><img src="${artistDB[k].img}" style="width:50px;height:50px;border-radius:50%; object-fit:cover;"><div style="font-size:10px; margin-top:5px;">#${k}</div></div>`).join(''); }
     
     function parseHashtags() {
         const val = document.getElementById('credits-input').value; const tags = val.match(/#(\w+)/g) || [];
-        document.getElementById('artist-chips').innerHTML = tags.map(t => { const art = artistDB[t.substring(1).toLowerCase()]; return art ? `<div style="display:inline-flex; align-items:center; gap:8px; background:rgba(255,255,255,0.1); padding:5px 15px; border-radius:20px; font-size:12px;"><img src="${art.img}" style="width:25px;height:25px;border-radius:50%; object-fit:cover;"> ${art.name}</div>` : ''; }).join('');
+        document.getElementById('artist-chips').innerHTML = tags.map(t => { const art = artistDB[t.substring(1).toLowerCase()]; return art ? `<div style="display:inline-flex; align-items:center; gap:8px; background:rgba(255,255,255,0.1); padding:5px 10px; border-radius:20px; font-size:11px;"><img src="${art.img}" style="width:20px;height:20px;border-radius:50%; object-fit:cover;"> ${art.name}</div>` : ''; }).join('');
     }
 
     window.onload = init;
