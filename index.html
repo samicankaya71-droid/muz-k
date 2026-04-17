@@ -3,185 +3,281 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Usta Global v8.5</title>
+    <title>Usta-ify Professional</title>
     <style>
-        body { background: #0b0b0b; color: #eee; font-family: 'Segoe UI', sans-serif; display: flex; flex-direction: column; align-items: center; padding: 20px; margin: 0; }
-        .player-card { background: linear-gradient(145deg, #1e1e1e, #111); padding: 30px; border-radius: 25px; box-shadow: 0 15px 35px rgba(0,0,0,0.8); width: 320px; text-align: center; border: 1px solid #333; position: relative; }
-        .neon-text { color: #00f2ff; text-shadow: 0 0 12px #00f2ff; margin: 15px 0; font-size: 1.2rem; font-weight: bold; min-height: 1.5em; }
-        .controls { display: flex; justify-content: center; gap: 15px; margin-top: 25px; }
-        button { background: rgba(0,242,255,0.05); border: 2px solid #00f2ff; color: #00f2ff; width: 55px; height: 55px; border-radius: 50%; cursor: pointer; transition: 0.3s; font-size: 18px; display: flex; align-items: center; justify-content: center; outline: none; }
-        button:hover { background: #00f2ff; color: #000; box-shadow: 0 0 15px #00f2ff; }
-        #playlist { margin-top: 25px; width: 340px; max-height: 250px; overflow-y: auto; background: #151515; border-radius: 15px; padding: 5px; border: 1px solid #222; }
-        .song-item { padding: 12px; border-bottom: 1px solid #222; cursor: pointer; font-size: 14px; text-align: left; color: #aaa; transition: 0.2s; }
-        .active-song { color: #00f2ff; font-weight: bold; background: #1a1a1a; border-left: 4px solid #00f2ff; }
-        .status-msg { font-size: 11px; color: #00f2ff; margin-top: 10px; opacity: 0.7; }
-        /* Kaydırma çubuğu tasarımı */
-        #playlist::-webkit-scrollbar { width: 5px; }
-        #playlist::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
+        :root { --neon: #00f2ff; --bg: #050505; --card: #121212; }
+        body { background: var(--bg); color: #fff; font-family: 'Segoe UI', sans-serif; margin: 0; display: flex; height: 100vh; overflow: hidden; }
+        
+        /* SOL PANEL (SIDEBAR) */
+        #sidebar { width: 280px; background: #000; border-right: 1px solid #222; display: flex; flex-direction: column; transition: 0.3s; z-index: 100; }
+        .sidebar-item { padding: 15px 20px; cursor: pointer; border-bottom: 1px solid #111; transition: 0.2s; }
+        .sidebar-item:hover { background: #1a1a1a; color: var(--neon); }
+        .section-title { font-size: 12px; color: #555; padding: 15px 20px 5px; text-transform: uppercase; letter-spacing: 1px; }
+
+        /* ANA İÇERİK ALANI */
+        #main-content { flex: 1; display: flex; flex-direction: column; position: relative; background: radial-gradient(circle at top right, #111, #050505); }
+        .header { padding: 20px; font-size: 24px; font-weight: bold; border-bottom: 1px solid #222; display: flex; justify-content: space-between; align-items: center; }
+        
+        /* ŞARKI LİSTESİ (HAVUZ) */
+        #song-list { flex: 1; overflow-y: auto; padding: 20px; }
+        .song-row { display: flex; align-items: center; padding: 10px; border-radius: 8px; margin-bottom: 5px; transition: 0.3s; cursor: pointer; position: relative; }
+        .song-row:hover { background: rgba(255,255,255,0.05); }
+        .song-row.active { border-left: 4px solid var(--neon); background: rgba(0,242,255,0.05); }
+        .song-info { flex: 1; margin-left: 15px; }
+        .fav-btn { color: #444; font-size: 20px; cursor: pointer; transition: 0.3s; }
+        .fav-btn.active { color: #ff0055; text-shadow: 0 0 10px #ff0055; }
+
+        /* ALT ÇALMA ÇUBUĞU (PLAYER BAR) */
+        #player-bar { height: 100px; background: #0a0a0a; border-top: 1px solid #222; display: flex; align-items: center; padding: 0 20px; gap: 20px; }
+        .current-track-info { width: 250px; }
+        .controls-center { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 5px; }
+        .btn-group { display: flex; align-items: center; gap: 15px; }
+        .main-btns { font-size: 20px; cursor: pointer; color: #fff; }
+        .main-btns:hover { color: var(--neon); text-shadow: 0 0 10px var(--neon); }
+        .progress-container { width: 100%; display: flex; align-items: center; gap: 10px; font-size: 12px; color: #888; }
+        .progress-bar { flex: 1; height: 4px; background: #333; border-radius: 2px; cursor: pointer; position: relative; }
+        .progress-fill { height: 100%; background: var(--neon); width: 0%; box-shadow: 0 0 8px var(--neon); }
+
+        /* AYARLAR MODAL */
+        #settings-menu { position: absolute; left: 20px; bottom: 120px; background: #1a1a1a; padding: 20px; border-radius: 15px; border: 1px solid var(--neon); display: none; width: 250px; box-shadow: 0 0 30px rgba(0,0,0,0.5); }
+        
+        .history-list { font-size: 11px; color: #888; padding: 10px; }
+        .sortable-ghost { opacity: 0.3; background: var(--neon); }
     </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.14.0/Sortable.min.js"></script>
 </head>
 <body>
 
-<div class="player-card">
-    <h3 id="song-title">Liste Çekiliyor...</h3>
-    <p id="artist-name" class="neon-text">Degoo Cloud System</p>
+<div id="sidebar">
+    <div class="header" style="font-size: 18px; color: var(--neon);">USTA-IFY</div>
+    <div class="section-title">Kütüphane</div>
+    <div class="sidebar-item" onclick="showView('all')">🎵 Tüm Şarkılar (Havuz)</div>
+    <div class="sidebar-item" onclick="showView('favorites')">❤️ Favoriler</div>
+    <div class="section-title">Playlistlerim</div>
+    <div id="playlist-nav"></div>
+    <div class="sidebar-item" style="color: #666;" onclick="createNewPlaylist()">+ Yeni Playlist Oluştur</div>
     
-    <div class="controls">
-        <button onclick="prevSong()">⏮</button>
-        <button id="play-btn" onclick="togglePlay()">▶</button>
-        <button onclick="nextSong()">⏭</button>
+    <div class="section-title">Aktivite</div>
+    <div class="sidebar-item" onclick="toggleHistory()">📜 Şarkı Geçmişi</div>
+    <div id="history-box" style="display:none;" class="history-list"></div>
+    
+    <div style="margin-top: auto;">
+        <div class="sidebar-item" onclick="toggleSettings()">⚙️ Ayarlar</div>
     </div>
-    
-    <div id="status" class="status-msg">Hazır</div>
-    
-    <audio id="audio1" preload="auto"></audio>
-    <audio id="audio2" preload="auto"></audio>
 </div>
 
-<div id="playlist"></div>
+<div id="main-content">
+    <div id="view-title" class="header">Tüm Şarkılar</div>
+    <button id="edit-mode-btn" style="position: absolute; right: 20px; top: 85px; background: none; border: 1px solid #444; color: #888; cursor: pointer; padding: 5px 10px; border-radius: 5px;">Düzenle: KAPALI</button>
+    <div id="song-list"></div>
+
+    <div id="settings-menu">
+        <h4 style="margin-top: 0;">Genel Ayarlar</h4>
+        <label>Crossfade (Saniye): <span id="cf-val">3</span>s</label>
+        <input type="range" min="0" max="12" value="3" style="width:100%" oninput="updateCF(this.value)">
+        <div style="margin-top: 15px;">
+            <small>Dükkan Modu: Neon Açık</small>
+        </div>
+    </div>
+</div>
+
+<div id="player-bar">
+    <div class="current-track-info">
+        <div id="bar-title" style="font-weight: bold; font-size: 14px;">Şarkı Seçilmedi</div>
+        <div id="bar-artist" style="font-size: 12px; color: #888;">Sanatçı</div>
+    </div>
+
+    <div class="controls-center">
+        <div class="btn-group">
+            <span class="main-btns" onclick="toggleShuffle()" id="shuffle-btn">🔀</span>
+            <span class="main-btns" onclick="prevSong()">⏮</span>
+            <span class="main-btns" id="play-btn" onclick="togglePlay()" style="font-size: 35px;">▶</span>
+            <span class="main-btns" onclick="nextSong()">⏭</span>
+            <span class="main-btns" onclick="toggleRepeat()" id="repeat-btn">🔁</span>
+        </div>
+        <div class="progress-container">
+            <span id="current-time">0:00</span>
+            <div class="progress-bar" onclick="seek(event)">
+                <div id="progress-fill" class="progress-fill"></div>
+            </div>
+            <span id="duration-time">0:00</span>
+        </div>
+    </div>
+    
+    <div style="width: 150px; display: flex; align-items: center; gap: 10px;">
+        🔊 <input type="range" min="0" max="1" step="0.1" value="1" oninput="updateVolume(this.value)">
+    </div>
+</div>
+
+<audio id="audio1"></audio>
+<audio id="audio2"></audio>
 
 <script>
-    let songs = [];
+    let allSongs = []; // Havuz
+    let currentQueue = []; // O an çalan liste
+    let favorites = JSON.parse(localStorage.getItem('favs')) || [];
+    let history = JSON.parse(localStorage.getItem('history')) || [];
+    let playlists = JSON.parse(localStorage.getItem('playlists')) || {};
+    
     let currentIndex = 0;
     let activePlayer = 1;
-    let crossfadeTime = 3000; 
+    let crossfadeTime = 3000;
+    let isShuffle = false;
+    let repeatMode = 0; // 0: Kapalı, 1: Playlist Döngü, 2: Tek Şarkı Döngü
+    let editMode = false;
+
     const audio1 = document.getElementById('audio1');
     const audio2 = document.getElementById('audio2');
 
-    // USTA: Bu fonksiyon linkleri temizler ve çalınabilir yapar
-    function formatUrl(url) {
-        if (!url) return "";
-        let cleanUrl = url.trim();
-
-        // Google Drive Düzeltici
-        if (cleanUrl.includes('drive.google.com')) {
-            let fileId = cleanUrl.split('/d/')[1]?.split('/')[0] || cleanUrl.split('id=')[1]?.split('&')[0];
-            return `https://docs.google.com/uc?export=download&id=${fileId}`;
-        }
-        // Dropbox Düzeltici
-        if (cleanUrl.includes('dropbox.com')) {
-            return cleanUrl.replace(/\?dl=0$|\?dl=1$|$/, '?raw=1');
-        }
-        // Degoo için "CORS" ve "Ham Veri" zorlaması yapıyoruz
-        return cleanUrl;
-    }
-
-    async function loadSongsFromGoogle() {
+    // VERİ ÇEKME
+    async function loadData() {
         const tableID = "1wmpmxKjl-EFhiwqEShsPYx9VjiXfEmqvfdlI2k0Bkq8";
         const url = `https://docs.google.com/spreadsheets/d/${tableID}/gviz/tq?tqx=out:json`;
-        
         try {
-            const response = await fetch(url);
-            const text = await response.text();
-            const jsonText = text.substring(47).slice(0, -2);
-            const json = JSON.parse(jsonText);
-            
-            songs = json.table.rows.map(row => ({
-                title: row.c[0] ? String(row.c[0].v) : "İsimsiz",
-                artist: row.c[1] ? String(row.c[1].v) : "Bilinmiyor",
-                url: row.c[2] ? String(row.c[2].v) : ""
-            })).filter(s => s.url !== "");
+            const res = await fetch(url);
+            const text = await res.text();
+            const json = JSON.parse(text.substring(47).slice(0, -2));
+            allSongs = json.table.rows.map(row => ({
+                id: Math.random().toString(36).substr(2, 9),
+                title: row.c[0]?.v || "İsimsiz",
+                artist: row.c[1]?.v || "Usta",
+                url: row.c[2]?.v || ""
+            })).filter(s => s.url.length > 5);
+            showView('all');
+        } catch (e) { alert("Veri çekilemedi!"); }
+    }
 
-            if(songs.length > 0) {
-                renderPlaylist();
-                document.getElementById('song-title').innerText = songs[0].title;
-                document.getElementById('artist-name').innerText = songs[0].artist;
-            } else {
-                document.getElementById('song-title').innerText = "Tablo Boş!";
-            }
-        } catch (e) {
-            document.getElementById('song-title').innerText = "Bağlantı Hatası!";
+    // GÖRÜNÜM YÖNETİMİ
+    function showView(type, playlistName = null) {
+        let listHtml = "";
+        let targetList = [];
+        const container = document.getElementById('song-list');
+        
+        if(type === 'all') {
+            targetList = allSongs;
+            document.getElementById('view-title').innerText = "Tüm Şarkılar (Havuz)";
+        } else if(type === 'favorites') {
+            targetList = allSongs.filter(s => favorites.includes(s.url));
+            document.getElementById('view-title').innerText = "Favoriler";
+        }
+
+        currentQueue = targetList;
+        renderList(targetList);
+    }
+
+    function renderList(list) {
+        const container = document.getElementById('song-list');
+        container.innerHTML = list.map((s, i) => `
+            <div class="song-row" data-id="${s.id}" onclick="playSong(${i})">
+                <div style="color: #444; width: 20px;">${i+1}</div>
+                <div class="song-info">
+                    <div style="font-weight: bold;">${s.title}</div>
+                    <div style="font-size: 12px; color: #666;">${s.artist}</div>
+                </div>
+                <div class="fav-btn ${favorites.includes(s.url) ? 'active' : ''}" onclick="event.stopPropagation(); toggleFav('${s.url}')">❤</div>
+            </div>
+        `).join('');
+        
+        // Sürükle Bırak Etkinleştirme
+        if(editMode) {
+            new Sortable(container, {
+                animation: 150,
+                ghostClass: 'sortable-ghost'
+            });
         }
     }
 
-    window.onload = loadSongsFromGoogle;
-
-    function renderPlaylist() {
-        const list = document.getElementById('playlist');
-        list.innerHTML = songs.map((s, i) => `
-            <div class="song-item ${i === currentIndex ? 'active-song' : ''}" onclick="playSpecific(${i})">
-                ${i+1}. ${s.title} - ${s.artist}
-            </div>
-        `).join('');
-    }
-
-    function playSpecific(index) {
+    // OYNATMA MANTIĞI
+    function playSong(index) {
         currentIndex = index;
-        startSong();
+        const song = currentQueue[currentIndex];
+        const player = activePlayer === 1 ? audio1 : audio2;
+        
+        player.src = song.url;
+        player.play();
+        
+        document.getElementById('bar-title').innerText = song.title;
+        document.getElementById('bar-artist').innerText = song.artist;
+        document.getElementById('play-btn').innerText = "⏸";
+        
+        addToHistory(song);
+        updateProgress();
     }
 
-    function startSong() {
-        const song = songs[currentIndex];
-        const finalUrl = formatUrl(song.url);
-        let currentPlayer = activePlayer === 1 ? audio1 : audio2;
-        
-        document.getElementById('status').innerText = "Şarkı Açılıyor...";
-        
-        // Güvenlik ayarı
-        currentPlayer.crossOrigin = "anonymous";
-        currentPlayer.src = finalUrl;
-        
-        currentPlayer.play().then(() => {
-            document.getElementById('play-btn').innerText = "⏸";
-            document.getElementById('song-title').innerText = song.title;
-            document.getElementById('artist-name').innerText = song.artist;
-            document.getElementById('status').innerText = "Oynatılıyor";
-            renderPlaylist();
-            setupCrossfade(currentPlayer);
-        }).catch(err => {
-            document.getElementById('status').innerText = "Hata: Link Geçersiz!";
-            console.error(err);
-        });
+    function addToHistory(song) {
+        const now = new Date();
+        const timeStr = `${now.getHours()}:${now.getMinutes()} - ${now.toLocaleDateString()}`;
+        history.unshift({ title: song.title, time: timeStr });
+        if(history.length > 20) history.pop();
+        localStorage.setItem('history', JSON.stringify(history));
+        updateHistoryUI();
     }
 
-    function setupCrossfade(player) {
-        player.ontimeupdate = function() {
-            if (player.duration && player.duration - player.currentTime < (crossfadeTime / 1000)) {
-                player.ontimeupdate = null; 
-                fadeOutAndNext(player);
+    // AYARLAR & KONTROLLER
+    function updateCF(val) {
+        crossfadeTime = val * 1000;
+        document.getElementById('cf-val').innerText = val;
+    }
+
+    function toggleEdit() {
+        editMode = !editMode;
+        document.getElementById('edit-mode-btn').innerText = editMode ? "Düzenle: AÇIK" : "Düzenle: KAPALI";
+        renderList(currentQueue);
+    }
+
+    function togglePlay() {
+        const p = activePlayer === 1 ? audio1 : audio2;
+        if(p.paused) { p.play(); document.getElementById('play-btn').innerText = "⏸"; }
+        else { p.pause(); document.getElementById('play-btn').innerText = "▶"; }
+    }
+
+    function updateProgress() {
+        const p = activePlayer === 1 ? audio1 : audio2;
+        p.ontimeupdate = () => {
+            const perc = (p.currentTime / p.duration) * 100;
+            document.getElementById('progress-fill').style.width = perc + "%";
+            document.getElementById('current-time').innerText = formatTime(p.currentTime);
+            document.getElementById('duration-time').innerText = formatTime(p.duration);
+            
+            // Crossfade Tetikleme
+            if (p.duration && p.duration - p.currentTime < (crossfadeTime / 1000)) {
+                p.ontimeupdate = null;
+                nextWithFade();
             }
         };
     }
 
-    function fadeOutAndNext(oldPlayer) {
-        currentIndex = (currentIndex + 1) % songs.length;
-        activePlayer = activePlayer === 1 ? 2 : 1;
-        let newPlayer = activePlayer === 1 ? audio1 : audio2;
-        
-        newPlayer.crossOrigin = "anonymous";
-        newPlayer.src = formatUrl(songs[currentIndex].url);
-        newPlayer.volume = 0;
-        newPlayer.play();
-
-        let fadeInterval = setInterval(() => {
-            if (newPlayer.volume < 0.9) {
-                newPlayer.volume += 0.1;
-                if(oldPlayer.volume > 0.1) oldPlayer.volume -= 0.1;
-            } else {
-                oldPlayer.pause();
-                oldPlayer.volume = 1;
-                newPlayer.volume = 1;
-                clearInterval(fadeInterval);
-                setupCrossfade(newPlayer);
-                renderPlaylist();
-                document.getElementById('song-title').innerText = songs[currentIndex].title;
-                document.getElementById('artist-name').innerText = songs[currentIndex].artist;
-            }
-        }, 300);
+    function formatTime(sec) {
+        if(!sec) return "0:00";
+        let m = Math.floor(sec / 60);
+        let s = Math.floor(sec % 60);
+        return `${m}:${s < 10 ? '0' : ''}${s}`;
     }
 
-    function togglePlay() {
-        let p = activePlayer === 1 ? audio1 : audio2;
-        if (p.paused) { 
-            if(!p.src) { startSong(); } else { p.play(); document.getElementById('play-btn').innerText = "⏸"; }
-        } else { 
-            p.pause(); document.getElementById('play-btn').innerText = "▶"; 
-        }
+    // Modal ve Menü Açılışları
+    function toggleSettings() { 
+        const m = document.getElementById('settings-menu');
+        m.style.display = m.style.display === 'block' ? 'none' : 'block';
+    }
+    
+    function toggleHistory() {
+        const h = document.getElementById('history-box');
+        h.style.display = h.style.display === 'block' ? 'none' : 'block';
+        updateHistoryUI();
     }
 
-    function nextSong() { currentIndex = (currentIndex + 1) % songs.length; startSong(); }
-    function prevSong() { currentIndex = (currentIndex - 1 + songs.length) % songs.length; startSong(); }
+    function updateHistoryUI() {
+        document.getElementById('history-box').innerHTML = history.map(h => `
+            <div style="margin-bottom: 8px; border-left: 2px solid #333; padding-left: 5px;">
+                <div>${h.title}</div>
+                <div style="font-size: 9px; color: #555;">${h.time}</div>
+            </div>
+        `).join('');
+    }
+
+    document.getElementById('edit-mode-btn').onclick = toggleEdit;
+    window.onload = loadData;
+
 </script>
-
 </body>
 </html>
