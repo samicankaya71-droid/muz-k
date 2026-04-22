@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Usta-ify Premium Cloud v27</title>
+    <title>Argan Mobilya Audio Suite</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link id="main-font-link" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;900&display=swap" rel="stylesheet">
@@ -103,6 +103,14 @@
             color: var(--accent);
             font-size: 22px;
             letter-spacing: 0.04em;
+        }
+
+        .brand small {
+            display: block;
+            margin-top: 6px;
+            font-size: 11px;
+            color: var(--muted);
+            letter-spacing: 0.18em;
         }
 
         .nav-link {
@@ -899,6 +907,61 @@
             background: transparent;
         }
 
+        .editor-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 24px;
+            margin-top: 24px;
+        }
+
+        .editor-card {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 18px;
+            padding: 20px;
+        }
+
+        .editor-card h3 {
+            margin: 0 0 14px;
+            font-size: 18px;
+        }
+
+        .editor-field {
+            margin-bottom: 14px;
+        }
+
+        .editor-field label {
+            display: block;
+            font-size: 12px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            color: var(--muted);
+        }
+
+        .editor-stats {
+            font-size: 12px;
+            color: var(--muted);
+            margin-bottom: 12px;
+            min-height: 18px;
+        }
+
+        .editor-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 18px;
+        }
+
+        .editor-timeline {
+            margin-top: 16px;
+            padding: 14px;
+            border-radius: 14px;
+            background: rgba(255,255,255,0.04);
+            font-size: 12px;
+            color: var(--muted);
+            line-height: 1.6;
+        }
+
         @media (max-width: 768px) {
             :root {
                 --player-width: 95%;
@@ -977,10 +1040,11 @@
     <div id="menu-toggle" class="menu-toggle" aria-label="Menüyü Aç">☰</div>
 
     <aside id="sidebar">
-        <div class="brand">USTA-IFY PREMIUM</div>
+        <div class="brand">ARGAN MOBILYA<small>AUDIO SUITE</small></div>
         <div class="nav-link active" data-view="all"><span>🏠</span><span>HAVUZ</span></div>
         <div class="nav-link" data-view="fav"><span>💖</span><span>FAVORİLER</span></div>
         <div class="nav-link" data-modal-target="playlist-modal"><span>📂</span><span>LİSTELER</span></div>
+        <div class="nav-link" data-modal-target="editor-modal"><span>🎚</span><span>DÜZENLEYİCİ</span></div>
         <div id="sidebar-playlists"></div>
         <div style="margin-top:auto; padding-bottom:30px;">
             <div class="nav-link" data-modal-target="db-modal">👤 ARŞİV</div>
@@ -1013,7 +1077,7 @@
         <div id="main-art" class="premium-art"></div>
         <div class="detail-center">
             <h2 id="det-title">Şarkı Seçilmedi</h2>
-            <p id="det-artist">Usta-ify</p>
+            <p id="det-artist">Argan Mobilya</p>
         </div>
         <div id="artist-chips" class="chip-wrap"></div>
 
@@ -1170,6 +1234,69 @@
         <div id="db-list" class="grid-list db-grid"></div>
     </section>
 
+    <section id="editor-modal" class="full-modal">
+        <span class="close-x" data-close-modal="editor-modal">✕</span>
+        <h1>MÜZİK DÜZENLEYİCİ</h1>
+        <p class="muted">Yerel dosya yükle, kes, hizala, iki parçayı üst üste getir ve tek çıktı al.</p>
+
+        <div class="editor-grid">
+            <div class="editor-card">
+                <h3>Parça A</h3>
+                <div class="editor-field">
+                    <label for="editor-file-a">Ses dosyası</label>
+                    <input id="editor-file-a" class="text-input" type="file" accept="audio/*">
+                </div>
+                <div id="editor-a-stats" class="editor-stats">Dosya seçilmedi.</div>
+                <div class="editor-field">
+                    <label for="editor-a-start">Başlangıç</label>
+                    <input id="editor-a-start" class="range" type="range" min="0" max="0" step="0.01" value="0">
+                </div>
+                <div class="editor-field">
+                    <label for="editor-a-end">Bitiş</label>
+                    <input id="editor-a-end" class="range" type="range" min="0" max="0" step="0.01" value="0">
+                </div>
+            </div>
+
+            <div class="editor-card">
+                <h3>Parça B</h3>
+                <div class="editor-field">
+                    <label for="editor-file-b">Ses dosyası</label>
+                    <input id="editor-file-b" class="text-input" type="file" accept="audio/*">
+                </div>
+                <div id="editor-b-stats" class="editor-stats">İkinci parça isteğe bağlı.</div>
+                <div class="editor-field">
+                    <label for="editor-b-start">Başlangıç</label>
+                    <input id="editor-b-start" class="range" type="range" min="0" max="0" step="0.01" value="0">
+                </div>
+                <div class="editor-field">
+                    <label for="editor-b-end">Bitiş</label>
+                    <input id="editor-b-end" class="range" type="range" min="0" max="0" step="0.01" value="0">
+                </div>
+                <div class="editor-field">
+                    <label for="editor-b-offset">Parça B başlangıç ofseti</label>
+                    <input id="editor-b-offset" class="range" type="range" min="0" max="60" step="0.01" value="0">
+                </div>
+            </div>
+
+            <div class="editor-card">
+                <h3>Önizleme ve Çıkış</h3>
+                <div class="editor-field">
+                    <label for="editor-crossfade">Birleşim yumuşatma</label>
+                    <input id="editor-crossfade" class="range" type="range" min="0" max="15" step="0.1" value="0">
+                </div>
+                <div id="editor-timeline" class="editor-timeline">
+                    Parça A bekleniyor.
+                </div>
+                <div class="editor-actions">
+                    <button id="editor-preview-a" class="ghost-btn" type="button">A Önizle</button>
+                    <button id="editor-preview-mix" class="ghost-btn" type="button">Karışımı Önizle</button>
+                    <button id="editor-stop" class="ghost-btn" type="button">Durdur</button>
+                    <button id="editor-export" class="panel-btn" type="button">WAV Dışa Aktar</button>
+                </div>
+            </div>
+        </div>
+    </section>
+
     <audio id="pa" preload="none"></audio>
     <audio id="pb" preload="none"></audio>
 
@@ -1221,7 +1348,13 @@
                 isCrossfading: false,
                 progressTimer: null,
                 lastSyncOk: null,
-                pendingRestoreTime: null
+                pendingRestoreTime: null,
+                editor: {
+                    audioContext: null,
+                    previewSources: [],
+                    trackA: null,
+                    trackB: null
+                }
             };
 
             const dom = {
@@ -1277,6 +1410,7 @@
                 settingsModal: document.getElementById("settings-modal"),
                 playlistModal: document.getElementById("playlist-modal"),
                 dbModal: document.getElementById("db-modal"),
+                editorModal: document.getElementById("editor-modal"),
                 manualSyncBtn: document.getElementById("manual-sync-btn"),
                 crossfadeRange: document.getElementById("crossfade-range"),
                 cfVal: document.getElementById("cf-val"),
@@ -1296,6 +1430,21 @@
                 dbImg: document.getElementById("db-img"),
                 saveDbBtn: document.getElementById("save-db-btn"),
                 dbList: document.getElementById("db-list"),
+                editorFileA: document.getElementById("editor-file-a"),
+                editorFileB: document.getElementById("editor-file-b"),
+                editorAStart: document.getElementById("editor-a-start"),
+                editorAEnd: document.getElementById("editor-a-end"),
+                editorBStart: document.getElementById("editor-b-start"),
+                editorBEnd: document.getElementById("editor-b-end"),
+                editorBOffset: document.getElementById("editor-b-offset"),
+                editorCrossfade: document.getElementById("editor-crossfade"),
+                editorAStats: document.getElementById("editor-a-stats"),
+                editorBStats: document.getElementById("editor-b-stats"),
+                editorTimeline: document.getElementById("editor-timeline"),
+                editorPreviewA: document.getElementById("editor-preview-a"),
+                editorPreviewMix: document.getElementById("editor-preview-mix"),
+                editorStop: document.getElementById("editor-stop"),
+                editorExport: document.getElementById("editor-export"),
                 pa: document.getElementById("pa"),
                 pb: document.getElementById("pb")
             };
@@ -1603,6 +1752,265 @@
                 state.theme = { ...DEFAULT_THEME };
                 saveLocalState();
                 applyCustomTheme();
+            }
+
+            function getEditorAudioContext() {
+                if (!state.editor.audioContext) {
+                    state.editor.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                return state.editor.audioContext;
+            }
+
+            function stopEditorPreview() {
+                state.editor.previewSources.forEach((source) => {
+                    try {
+                        source.stop();
+                    } catch {
+                        // ignore stopped nodes
+                    }
+                });
+                state.editor.previewSources = [];
+            }
+
+            function formatEditorSeconds(value) {
+                return (Number(value) || 0).toFixed(2) + " sn";
+            }
+
+            function updateEditorTimeline() {
+                const trackA = state.editor.trackA;
+                const trackB = state.editor.trackB;
+                if (!trackA) {
+                    dom.editorTimeline.textContent = "Parça A bekleniyor.";
+                    return;
+                }
+
+                const aDuration = Math.max(0, trackA.end - trackA.start);
+                const bDuration = trackB ? Math.max(0, trackB.end - trackB.start) : 0;
+                const offset = Number(dom.editorBOffset.value) || 0;
+                const crossfade = Number(dom.editorCrossfade.value) || 0;
+                const total = Math.max(aDuration, offset + bDuration);
+
+                dom.editorTimeline.innerHTML = [
+                    "Parça A: " + formatEditorSeconds(trackA.start) + " - " + formatEditorSeconds(trackA.end),
+                    trackB ? "Parça B: " + formatEditorSeconds(trackB.start) + " - " + formatEditorSeconds(trackB.end) : "Parça B eklenmedi.",
+                    "B ofseti: " + formatEditorSeconds(offset),
+                    "Yumuşatma: " + formatEditorSeconds(crossfade),
+                    "Tahmini çıktı: " + formatEditorSeconds(total)
+                ].join("<br>");
+            }
+
+            function updateEditorTrackUI(slot) {
+                const track = slot === "A" ? state.editor.trackA : state.editor.trackB;
+                const startEl = slot === "A" ? dom.editorAStart : dom.editorBStart;
+                const endEl = slot === "A" ? dom.editorAEnd : dom.editorBEnd;
+                const statsEl = slot === "A" ? dom.editorAStats : dom.editorBStats;
+
+                if (!track) {
+                    startEl.max = "0";
+                    endEl.max = "0";
+                    startEl.value = "0";
+                    endEl.value = "0";
+                    statsEl.textContent = slot === "A" ? "Dosya seçilmedi." : "İkinci parça isteğe bağlı.";
+                    updateEditorTimeline();
+                    return;
+                }
+
+                startEl.max = String(track.buffer.duration);
+                endEl.max = String(track.buffer.duration);
+                startEl.value = String(track.start);
+                endEl.value = String(track.end);
+                statsEl.textContent = track.fileName + " • " + formatEditorSeconds(track.buffer.duration);
+                updateEditorTimeline();
+            }
+
+            function syncEditorRange(slot, edge, value) {
+                const key = slot === "A" ? "trackA" : "trackB";
+                const track = state.editor[key];
+                if (!track) return;
+
+                const next = Math.max(0, Math.min(track.buffer.duration, Number(value) || 0));
+                if (edge === "start") {
+                    track.start = Math.min(next, track.end);
+                } else {
+                    track.end = Math.max(next, track.start);
+                }
+                updateEditorTrackUI(slot);
+            }
+
+            function sliceAudioBuffer(buffer, start, end, audioContext) {
+                const sampleRate = buffer.sampleRate;
+                const from = Math.max(0, Math.floor(start * sampleRate));
+                const to = Math.max(from + 1, Math.floor(end * sampleRate));
+                const frameCount = to - from;
+                const sliced = audioContext.createBuffer(buffer.numberOfChannels, frameCount, sampleRate);
+
+                for (let channel = 0; channel < buffer.numberOfChannels; channel += 1) {
+                    const sourceData = buffer.getChannelData(channel).slice(from, to);
+                    sliced.copyToChannel(sourceData, channel);
+                }
+
+                return sliced;
+            }
+
+            async function loadEditorTrack(slot, file) {
+                if (!file) return;
+                const audioContext = getEditorAudioContext();
+                const arrayBuffer = await file.arrayBuffer();
+                const decoded = await audioContext.decodeAudioData(arrayBuffer.slice(0));
+                state.editor[slot === "A" ? "trackA" : "trackB"] = {
+                    fileName: file.name,
+                    buffer: decoded,
+                    start: 0,
+                    end: decoded.duration
+                };
+                updateEditorTrackUI(slot);
+            }
+
+            function playEditorBuffer(buffer, when = 0, offset = 0, duration = undefined, gainValue = 1) {
+                const audioContext = getEditorAudioContext();
+                const source = audioContext.createBufferSource();
+                const gainNode = audioContext.createGain();
+                source.buffer = buffer;
+                gainNode.gain.value = gainValue;
+                source.connect(gainNode).connect(audioContext.destination);
+                source.start(audioContext.currentTime + when, offset, duration);
+                state.editor.previewSources.push(source);
+                source.addEventListener("ended", () => {
+                    state.editor.previewSources = state.editor.previewSources.filter((item) => item !== source);
+                });
+                return { source, gainNode };
+            }
+
+            function previewEditorTrackA() {
+                const track = state.editor.trackA;
+                if (!track) {
+                    window.alert("Önce Parça A yükle.");
+                    return;
+                }
+                stopEditorPreview();
+                const clip = sliceAudioBuffer(track.buffer, track.start, track.end, getEditorAudioContext());
+                playEditorBuffer(clip);
+            }
+
+            function previewEditorMix() {
+                const trackA = state.editor.trackA;
+                if (!trackA) {
+                    window.alert("Önce Parça A yükle.");
+                    return;
+                }
+
+                stopEditorPreview();
+                const audioContext = getEditorAudioContext();
+                const clipA = sliceAudioBuffer(trackA.buffer, trackA.start, trackA.end, audioContext);
+                playEditorBuffer(clipA);
+
+                if (state.editor.trackB) {
+                    const trackB = state.editor.trackB;
+                    const clipB = sliceAudioBuffer(trackB.buffer, trackB.start, trackB.end, audioContext);
+                    playEditorBuffer(clipB, Number(dom.editorBOffset.value) || 0);
+                }
+            }
+
+            function audioBufferToWavBlob(buffer) {
+                const numberOfChannels = buffer.numberOfChannels;
+                const sampleRate = buffer.sampleRate;
+                const format = 1;
+                const bitDepth = 16;
+                const bytesPerSample = bitDepth / 8;
+                const blockAlign = numberOfChannels * bytesPerSample;
+                const dataLength = buffer.length * blockAlign;
+                const arrayBuffer = new ArrayBuffer(44 + dataLength);
+                const view = new DataView(arrayBuffer);
+
+                function writeString(offset, string) {
+                    for (let i = 0; i < string.length; i += 1) {
+                        view.setUint8(offset + i, string.charCodeAt(i));
+                    }
+                }
+
+                let offset = 0;
+                writeString(offset, "RIFF"); offset += 4;
+                view.setUint32(offset, 36 + dataLength, true); offset += 4;
+                writeString(offset, "WAVE"); offset += 4;
+                writeString(offset, "fmt "); offset += 4;
+                view.setUint32(offset, 16, true); offset += 4;
+                view.setUint16(offset, format, true); offset += 2;
+                view.setUint16(offset, numberOfChannels, true); offset += 2;
+                view.setUint32(offset, sampleRate, true); offset += 4;
+                view.setUint32(offset, sampleRate * blockAlign, true); offset += 4;
+                view.setUint16(offset, blockAlign, true); offset += 2;
+                view.setUint16(offset, bitDepth, true); offset += 2;
+                writeString(offset, "data"); offset += 4;
+                view.setUint32(offset, dataLength, true); offset += 4;
+
+                const channels = [];
+                for (let channel = 0; channel < numberOfChannels; channel += 1) {
+                    channels.push(buffer.getChannelData(channel));
+                }
+
+                for (let i = 0; i < buffer.length; i += 1) {
+                    for (let channel = 0; channel < numberOfChannels; channel += 1) {
+                        const sample = Math.max(-1, Math.min(1, channels[channel][i]));
+                        view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7FFF, true);
+                        offset += 2;
+                    }
+                }
+
+                return new Blob([arrayBuffer], { type: "audio/wav" });
+            }
+
+            async function exportEditorMix() {
+                const trackA = state.editor.trackA;
+                if (!trackA) {
+                    window.alert("Önce Parça A yükle.");
+                    return;
+                }
+
+                const aDuration = Math.max(0.01, trackA.end - trackA.start);
+                const hasB = Boolean(state.editor.trackB);
+                const bDuration = hasB ? Math.max(0.01, state.editor.trackB.end - state.editor.trackB.start) : 0;
+                const offset = Number(dom.editorBOffset.value) || 0;
+                const totalDuration = Math.max(aDuration, offset + bDuration);
+                const sampleRate = trackA.buffer.sampleRate;
+                const offline = new OfflineAudioContext(2, Math.ceil(totalDuration * sampleRate), sampleRate);
+
+                const clipA = sliceAudioBuffer(trackA.buffer, trackA.start, trackA.end, offline);
+                const sourceA = offline.createBufferSource();
+                sourceA.buffer = clipA;
+                sourceA.connect(offline.destination);
+                sourceA.start(0);
+
+                if (hasB) {
+                    const trackB = state.editor.trackB;
+                    const clipB = sliceAudioBuffer(trackB.buffer, trackB.start, trackB.end, offline);
+                    const sourceB = offline.createBufferSource();
+                    sourceB.buffer = clipB;
+                    const gainB = offline.createGain();
+                    sourceB.connect(gainB).connect(offline.destination);
+                    gainB.gain.setValueAtTime(1, 0);
+                    sourceB.start(offset);
+
+                    const crossfade = Math.min(Number(dom.editorCrossfade.value) || 0, aDuration, bDuration);
+                    if (crossfade > 0) {
+                        const gainA = offline.createGain();
+                        sourceA.disconnect();
+                        sourceA.connect(gainA).connect(offline.destination);
+                        gainA.gain.setValueAtTime(1, 0);
+                        gainA.gain.setValueAtTime(1, Math.max(0, offset));
+                        gainA.gain.linearRampToValueAtTime(0, Math.max(0, offset + crossfade));
+                        gainB.gain.setValueAtTime(0, Math.max(0, offset));
+                        gainB.gain.linearRampToValueAtTime(1, Math.max(0, offset + crossfade));
+                    }
+                }
+
+                const rendered = await offline.startRendering();
+                const blob = audioBufferToWavBlob(rendered);
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement("a");
+                link.href = url;
+                link.download = "argan-mobilya-mix.wav";
+                link.click();
+                setTimeout(() => URL.revokeObjectURL(url), 2000);
             }
 
             function updateSelectionUI() {
@@ -2004,9 +2412,9 @@
             function renderTrackDetails(song) {
                 if (!song) {
                     dom.barTitle.textContent = "Şarkı Seç";
-                    dom.barArtist.textContent = "Usta-ify";
+                    dom.barArtist.textContent = "Argan Mobilya";
                     dom.detTitle.textContent = "Şarkı Seçilmedi";
-                    dom.detArtist.textContent = "Usta-ify";
+                    dom.detArtist.textContent = "Argan Mobilya";
                     dom.creditsInput.value = "";
                     dom.creditsPreview.textContent = "";
                     dom.tagEditor.classList.remove("open");
@@ -2695,6 +3103,22 @@
                     applyCustomTheme();
                     applyTheme((state.songMeta[getCurrentSong()?.url] || DEFAULT_META).art || "");
                 });
+                dom.editorFileA.addEventListener("change", async (event) => {
+                    await loadEditorTrack("A", event.target.files?.[0]);
+                });
+                dom.editorFileB.addEventListener("change", async (event) => {
+                    await loadEditorTrack("B", event.target.files?.[0]);
+                });
+                dom.editorAStart.addEventListener("input", (event) => syncEditorRange("A", "start", event.target.value));
+                dom.editorAEnd.addEventListener("input", (event) => syncEditorRange("A", "end", event.target.value));
+                dom.editorBStart.addEventListener("input", (event) => syncEditorRange("B", "start", event.target.value));
+                dom.editorBEnd.addEventListener("input", (event) => syncEditorRange("B", "end", event.target.value));
+                dom.editorBOffset.addEventListener("input", updateEditorTimeline);
+                dom.editorCrossfade.addEventListener("input", updateEditorTimeline);
+                dom.editorPreviewA.addEventListener("click", previewEditorTrackA);
+                dom.editorPreviewMix.addEventListener("click", previewEditorMix);
+                dom.editorStop.addEventListener("click", stopEditorPreview);
+                dom.editorExport.addEventListener("click", exportEditorMix);
                 dom.createPlaylistBtn.addEventListener("click", createPlaylist);
                 dom.quickPlaylistBtn.addEventListener("click", createPlaylist);
                 dom.saveDbBtn.addEventListener("click", saveArtistDB);
@@ -2731,6 +3155,7 @@
                 updateCrossfade(state.crossfadeSeconds);
                 setVolume(dom.volumeRange.value);
                 updateSelectionUI();
+                updateEditorTimeline();
                 toggleShuffle();
                 toggleShuffle();
                 toggleRepeat();
