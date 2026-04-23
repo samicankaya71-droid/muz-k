@@ -510,6 +510,38 @@
             opacity: 0.9;
         }
 
+        .lyrics-display {
+            max-height: 220px;
+            overflow-y: auto;
+            padding: 12px 14px;
+            border-radius: 16px;
+            background: rgba(255,255,255,0.05);
+            margin-top: 14px;
+        }
+
+        .lyrics-line {
+            padding: 8px 10px;
+            border-radius: 10px;
+            color: var(--muted);
+            transition: 0.2s ease;
+            white-space: pre-wrap;
+        }
+
+        .lyrics-line.active {
+            background: var(--accent-mid);
+            color: #fff;
+        }
+
+        .lyrics-empty {
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .editor-player {
+            width: 100%;
+            margin-top: 14px;
+        }
+
         .subsection {
             margin-top: 24px;
             padding-top: 18px;
@@ -1105,7 +1137,10 @@
                 <input type="text" id="credits-input" class="text-input" placeholder="#etiket ekle...">
             </div>
         </div>
-        <textarea id="desc-input" class="text-area" placeholder="Notlar..."></textarea>
+        <div id="lyrics-display" class="lyrics-display">
+            <div class="lyrics-empty">Şarkı sözü eklenmedi.</div>
+        </div>
+        <textarea id="lyrics-input" class="text-area" placeholder="LRC destekli sözler: [00:12.50] İlk satır"></textarea>
 
         <div class="subsection">
             <div class="subsection-title">PLAYLIST YÖNETİMİ</div>
@@ -1293,6 +1328,7 @@
                     <button id="editor-stop" class="ghost-btn" type="button">Durdur</button>
                     <button id="editor-export" class="panel-btn" type="button">WAV Dışa Aktar</button>
                 </div>
+                <audio id="editor-rendered-player" class="editor-player" controls></audio>
             </div>
         </div>
     </section>
@@ -1306,7 +1342,7 @@
             const SHEET_ID = "1wmpmxKjl-EFhiwqEShsPYx9VjiXfEmqvfdlI2k0Bkq8";
             const STORAGE_KEYS = ["u_f", "u_pl", "u_db", "u_m", "u_theme", "u_settings"];
             const SPEED_STEPS = [1, 1.25, 1.5, 2, 0.75];
-            const DEFAULT_META = { art: "", credits: "", desc: "" };
+            const DEFAULT_META = { art: "", credits: "", lyrics: "" };
             const LAST_STATE_KEY = "u_last_state";
             const QUEUE_KEY = "u_queue";
             const THEME_KEY = "u_theme";
@@ -1349,11 +1385,14 @@
                 progressTimer: null,
                 lastSyncOk: null,
                 pendingRestoreTime: null,
+                activeLyrics: [],
+                activeLyricIndex: -1,
                 editor: {
                     audioContext: null,
                     previewSources: [],
                     trackA: null,
-                    trackB: null
+                    trackB: null,
+                    renderedUrl: ""
                 }
             };
 
@@ -1390,7 +1429,8 @@
                 creditsPreview: document.getElementById("credits-preview"),
                 creditsHotspot: document.getElementById("credits-hotspot"),
                 creditsInput: document.getElementById("credits-input"),
-                descInput: document.getElementById("desc-input"),
+                lyricsDisplay: document.getElementById("lyrics-display"),
+                lyricsInput: document.getElementById("lyrics-input"),
                 playlistToggles: document.getElementById("playlist-toggles"),
                 quickPlaylistName: document.getElementById("quick-playlist-name"),
                 quickPlaylistBtn: document.getElementById("quick-playlist-btn"),
@@ -1445,6 +1485,7 @@
                 editorPreviewMix: document.getElementById("editor-preview-mix"),
                 editorStop: document.getElementById("editor-stop"),
                 editorExport: document.getElementById("editor-export"),
+                editorRenderedPlayer: document.getElementById("editor-rendered-player"),
                 pa: document.getElementById("pa"),
                 pb: document.getElementById("pb")
             };
@@ -1772,6 +1813,13 @@
                 state.editor.previewSources = [];
             }
 
+            function cleanupRenderedEditorUrl() {
+                if (state.editor.renderedUrl) {
+                    URL.revokeObjectURL(state.editor.renderedUrl);
+                    state.editor.renderedUrl = "";
+                }
+            }
+
             function formatEditorSeconds(value) {
                 return (Number(value) || 0).toFixed(2) + " sn";
             }
@@ -1821,6 +1869,82 @@
                 endEl.value = String(track.end);
                 statsEl.textContent = track.fileName + " • " + formatEditorSeconds(track.buffer.duration);
                 updateEditorTimeline();
+            }
+
+            function parseLyrics(rawText) {
+                const text = String(rawText || "").trim();
+                if (!text) return [];
+
+                const lines = [];
+                text.split(/\r?\n/).forEach((line) => {
+                    const matches = [...line.matchAll(/\[(\d{1,2}):(\d{2})(?:\.(\d{1,2}))?\]/g)];
+                    const content = line.replace(/\[(\d{1,2}):(\d{2})(?:\.(\d{1,2}))?\]/g, "").trim();
+                    if (!matches.length) {
+                        if (content) lines.push({ time: null, text: content });
+                        return;
+                    }
+
+                    matches.forEach((match) => {
+                        const minutes = Number(match[1]) || 0;
+                        const seconds = Number(match[2]) || 0;
+                        const centiseconds = Number(match[3] || 0);
+                        const time = minutes * 60 + seconds + centiseconds / 100;
+                        lines.push({ time, text: content || "..." });
+                    });
+                });
+
+                return lines.sort((a, b) => {
+                    if (a.time === null && b.time === null) return 0;
+                    if (a.time === null) return 1;
+                    if (b.time === null) return -1;
+                    return a.time - b.time;
+                });
+            }
+
+            function renderLyricsDisplay() {
+                clearNode(dom.lyricsDisplay);
+
+                if (!state.activeLyrics.length) {
+                    const empty = document.createElement("div");
+                    empty.className = "lyrics-empty";
+                    empty.textContent = "Şarkı sözü eklenmedi.";
+                    dom.lyricsDisplay.appendChild(empty);
+                    return;
+                }
+
+                state.activeLyrics.forEach((line, index) => {
+                    const row = document.createElement("div");
+                    row.className = "lyrics-line";
+                    row.dataset.index = String(index);
+                    row.textContent = line.text;
+                    dom.lyricsDisplay.appendChild(row);
+                });
+            }
+
+            function updateLyricsPlayback(currentTime = 0) {
+                if (!state.activeLyrics.length) return;
+
+                const timedLines = state.activeLyrics.filter((line) => line.time !== null);
+                if (!timedLines.length) return;
+
+                let activeIndex = -1;
+                for (let i = 0; i < state.activeLyrics.length; i += 1) {
+                    const line = state.activeLyrics[i];
+                    if (line.time !== null && currentTime >= line.time) {
+                        activeIndex = i;
+                    }
+                }
+
+                if (activeIndex === state.activeLyricIndex) return;
+                state.activeLyricIndex = activeIndex;
+
+                dom.lyricsDisplay.querySelectorAll(".lyrics-line").forEach((node) => {
+                    const isActive = Number(node.dataset.index) === activeIndex;
+                    node.classList.toggle("active", isActive);
+                    if (isActive) {
+                        node.scrollIntoView({ block: "nearest" });
+                    }
+                });
             }
 
             function syncEditorRange(slot, edge, value) {
@@ -1893,22 +2017,11 @@
             }
 
             function previewEditorMix() {
-                const trackA = state.editor.trackA;
-                if (!trackA) {
-                    window.alert("Önce Parça A yükle.");
-                    return;
-                }
-
                 stopEditorPreview();
-                const audioContext = getEditorAudioContext();
-                const clipA = sliceAudioBuffer(trackA.buffer, trackA.start, trackA.end, audioContext);
-                playEditorBuffer(clipA);
-
-                if (state.editor.trackB) {
-                    const trackB = state.editor.trackB;
-                    const clipB = sliceAudioBuffer(trackB.buffer, trackB.start, trackB.end, audioContext);
-                    playEditorBuffer(clipB, Number(dom.editorBOffset.value) || 0);
-                }
+                renderEditorMix(false, true).catch((error) => {
+                    console.error(error);
+                    window.alert("Karışım önizlenemedi.");
+                });
             }
 
             function audioBufferToWavBlob(buffer) {
@@ -1959,11 +2072,11 @@
                 return new Blob([arrayBuffer], { type: "audio/wav" });
             }
 
-            async function exportEditorMix() {
+            async function renderEditorMix(downloadAfterRender = false, autoplayAfterRender = false) {
                 const trackA = state.editor.trackA;
                 if (!trackA) {
                     window.alert("Önce Parça A yükle.");
-                    return;
+                    return null;
                 }
 
                 const aDuration = Math.max(0.01, trackA.end - trackA.start);
@@ -2005,12 +2118,28 @@
 
                 const rendered = await offline.startRendering();
                 const blob = audioBufferToWavBlob(rendered);
+                cleanupRenderedEditorUrl();
                 const url = URL.createObjectURL(blob);
-                const link = document.createElement("a");
-                link.href = url;
-                link.download = "argan-mobilya-mix.wav";
-                link.click();
-                setTimeout(() => URL.revokeObjectURL(url), 2000);
+                state.editor.renderedUrl = url;
+                dom.editorRenderedPlayer.src = url;
+
+                if (autoplayAfterRender) {
+                    dom.editorRenderedPlayer.currentTime = 0;
+                    dom.editorRenderedPlayer.play().catch(() => {});
+                }
+
+                if (downloadAfterRender) {
+                    const link = document.createElement("a");
+                    link.href = url;
+                    link.download = "argan-mobilya-mix.wav";
+                    link.click();
+                }
+
+                return { blob, url };
+            }
+
+            async function exportEditorMix() {
+                await renderEditorMix(true, false);
             }
 
             function updateSelectionUI() {
@@ -2418,10 +2547,13 @@
                     dom.creditsInput.value = "";
                     dom.creditsPreview.textContent = "";
                     dom.tagEditor.classList.remove("open");
-                    dom.descInput.value = "";
+                    dom.lyricsInput.value = "";
+                    state.activeLyrics = [];
+                    state.activeLyricIndex = -1;
                     renderArt(dom.mainArt, "", "FOTOĞRAF LİNKİ YAPIŞTIR");
                     clearNode(dom.miniArt);
                     clearNode(dom.artistChips);
+                    renderLyricsDisplay();
                     renderPlaylistToggles();
                     return;
                 }
@@ -2435,7 +2567,9 @@
                 dom.creditsInput.value = meta.credits || "";
                 dom.creditsPreview.textContent = meta.credits || "";
                 dom.tagEditor.classList.remove("open");
-                dom.descInput.value = meta.desc || "";
+                dom.lyricsInput.value = meta.lyrics || meta.desc || "";
+                state.activeLyrics = parseLyrics(dom.lyricsInput.value);
+                state.activeLyricIndex = -1;
                 renderArt(dom.mainArt, meta.art, "FOTOĞRAF LİNKİ YAPIŞTIR");
 
                 clearNode(dom.miniArt);
@@ -2444,6 +2578,7 @@
                 }
 
                 renderHashtags();
+                renderLyricsDisplay();
                 renderPlaylistToggles();
                 applyTheme(meta.art);
             }
@@ -2724,7 +2859,7 @@
                 state.songMeta[song.url] = {
                     ...(state.songMeta[song.url] || DEFAULT_META),
                     credits: dom.creditsInput.value,
-                    desc: dom.descInput.value
+                    lyrics: dom.lyricsInput.value
                 };
                 saveLocalState();
                 renderHashtags();
@@ -2864,6 +2999,7 @@
                 dom.mCur.textContent = formatTime(current);
                 dom.pcDur.textContent = formatTime(duration);
                 dom.mDur.textContent = formatTime(duration);
+                updateLyricsPlayback(current);
                 saveLastSession();
             }
 
@@ -3059,8 +3195,11 @@
                 dom.creditsInput.addEventListener("blur", () => {
                     dom.tagEditor.classList.remove("open");
                 });
-                dom.descInput.addEventListener("input", () => {
+                dom.lyricsInput.addEventListener("input", () => {
                     saveCurrentMeta();
+                    state.activeLyrics = parseLyrics(dom.lyricsInput.value);
+                    state.activeLyricIndex = -1;
+                    renderLyricsDisplay();
                     syncToCloud();
                 });
 
