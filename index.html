@@ -2062,6 +2062,21 @@
                 syncToCloud();
             }
 
+            function updateLyricsSyncStatus() {
+                const sync = state.lyricsTapSync;
+                if (!sync.active) {
+                    dom.lyricsSyncStatus.textContent = "Space sync hazır değil.";
+                    return;
+                }
+
+                const currentLine = sync.lines[sync.index] || "Bütün satırlar işlendi.";
+                dom.lyricsSyncStatus.textContent =
+                    "Space sync açık\n" +
+                    "Space = bu satırı yakala\n" +
+                    "Satır " + (Math.min(sync.index + 1, sync.lines.length)) + "/" + sync.lines.length + "\n" +
+                    currentLine;
+            }
+
             function renderLyricsDisplay() {
                 clearNode(dom.lyricsDisplay);
 
@@ -3482,7 +3497,10 @@
                     const isTyping = tag === "INPUT" || tag === "TEXTAREA";
                     if (isTyping) return;
 
-                    if (event.code === "Space") {
+                    if (event.code === "Space" && dom.lyricsModal.classList.contains("open") && state.lyricsTapSync.active) {
+                        event.preventDefault();
+                        captureNextLyricTimestamp();
+                    } else if (event.code === "Space") {
                         event.preventDefault();
                         togglePlay();
                     } else if (event.key === "Enter" && dom.lyricsModal.classList.contains("open") && state.lyricsTapSync.active) {
