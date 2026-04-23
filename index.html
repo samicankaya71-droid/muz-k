@@ -984,6 +984,16 @@
             margin-top: 18px;
         }
 
+        .lyrics-sync-status {
+            margin-top: 12px;
+            padding: 12px 14px;
+            border-radius: 14px;
+            background: rgba(255,255,255,0.04);
+            font-size: 12px;
+            color: var(--muted);
+            white-space: pre-wrap;
+        }
+
         .editor-timeline {
             margin-top: 16px;
             padding: 14px;
@@ -1341,8 +1351,12 @@
         <div class="editor-card" style="max-width:900px;">
             <div class="editor-actions" style="margin-top:0; margin-bottom:16px;">
                 <button id="lyrics-auto-btn" class="ghost-btn" type="button">Otomatik Zamanla</button>
+                <button id="lyrics-tap-start-btn" class="ghost-btn" type="button">Tap Sync Başlat</button>
+                <button id="lyrics-tap-next-btn" class="ghost-btn" type="button">Bu Satırı Yakala</button>
+                <button id="lyrics-tap-reset-btn" class="ghost-btn" type="button">Tap Sync Sıfırla</button>
                 <button id="lyrics-save-btn" class="panel-btn" type="button" style="width:auto;">Kaydet</button>
             </div>
+            <div id="lyrics-sync-status" class="lyrics-sync-status">Tap sync hazır değil.</div>
             <textarea id="lyrics-input" class="text-area" placeholder="LRC destekli sözler: [00:12.50] İlk satır" style="min-height:420px; margin-top:0;"></textarea>
         </div>
     </section>
@@ -1402,6 +1416,12 @@
                 preloadedNextUrl: "",
                 activeLyrics: [],
                 activeLyricIndex: -1,
+                lyricsTapSync: {
+                    active: false,
+                    index: 0,
+                    lines: [],
+                    timestamps: []
+                },
                 editor: {
                     audioContext: null,
                     previewSources: [],
@@ -1469,7 +1489,11 @@
                 lyricsModal: document.getElementById("lyrics-modal"),
                 openLyricsEditor: document.getElementById("open-lyrics-editor"),
                 lyricsAutoBtn: document.getElementById("lyrics-auto-btn"),
+                lyricsTapStartBtn: document.getElementById("lyrics-tap-start-btn"),
+                lyricsTapNextBtn: document.getElementById("lyrics-tap-next-btn"),
+                lyricsTapResetBtn: document.getElementById("lyrics-tap-reset-btn"),
                 lyricsSaveBtn: document.getElementById("lyrics-save-btn"),
+                lyricsSyncStatus: document.getElementById("lyrics-sync-status"),
                 manualSyncBtn: document.getElementById("manual-sync-btn"),
                 crossfadeRange: document.getElementById("crossfade-range"),
                 cfVal: document.getElementById("cf-val"),
@@ -1948,6 +1972,94 @@
                 return plainLines
                     .map((line, index) => formatLrcTimestamp(startOffset + step * index) + " " + line)
                     .join("\n");
+            }
+
+            function stripLyricsTimestamps(rawText) {
+                return String(rawText || "")
+                    .split(/\r?\n/)
+                    .map((line) => line.replace(/\[(\d{1,2}):(\d{2})(?:\.\d{1,2})?\]/g, "").trim())
+                    .filter(Boolean);
+            }
+
+            function updateLyricsSyncStatus() {
+                const sync = state.lyricsTapSync;
+                if (!sync.active) {
+                    dom.lyricsSyncStatus.textContent = "Tap sync hazır değil.";
+                    return;
+                }
+
+                const currentLine = sync.lines[sync.index] || "Bütün satırlar işlendi.";
+                dom.lyricsSyncStatus.textContent =
+                    "Tap sync açık\n" +
+                    "Satır " + (Math.min(sync.index + 1, sync.lines.length)) + "/" + sync.lines.length + "\n" +
+                    currentLine;
+            }
+
+            function rebuildTapSyncedLyrics() {
+                const sync = state.lyricsTapSync;
+                const lines = sync.lines.map((line, index) => {
+                    const time = sync.timestamps[index];
+                    return time == null ? line : formatLrcTimestamp(time) + " " + line;
+                });
+                dom.lyricsInput.value = lines.join("\n");
+            }
+
+            function startLyricsTapSync() {
+                const lines = stripLyricsTimestamps(dom.lyricsInput.value);
+                if (!lines.length) {
+                    window.alert("Önce sözleri yapıştır.");
+                    return;
+                }
+
+                state.lyricsTapSync = {
+                    active: true,
+                    index: 0,
+                    lines,
+                    timestamps: new Array(lines.length).fill(null)
+                };
+                dom.lyricsInput.value = lines.join("\n");
+                updateLyricsSyncStatus();
+            }
+
+            function resetLyricsTapSync() {
+                state.lyricsTapSync = {
+                    active: false,
+                    index: 0,
+                    lines: [],
+                    timestamps: []
+                };
+                updateLyricsSyncStatus();
+            }
+
+            function captureNextLyricTimestamp() {
+                const sync = state.lyricsTapSync;
+                const player = getPlayer();
+                if (!sync.active || !sync.lines.length) {
+                    window.alert("Önce Tap Sync Başlat.");
+                    return;
+                }
+
+                if (sync.index >= sync.lines.length) {
+                    updateLyricsSyncStatus();
+                    return;
+                }
+
+                sync.timestamps[sync.index] = player.currentTime || 0;
+                sync.index += 1;
+                rebuildTapSyncedLyrics();
+
+                if (sync.index >= sync.lines.length) {
+                    sync.active = false;
+                    dom.lyricsSyncStatus.textContent = "Tap sync tamamlandı.";
+                } else {
+                    updateLyricsSyncStatus();
+                }
+
+                saveCurrentMeta();
+                state.activeLyrics = parseLyrics(dom.lyricsInput.value);
+                state.activeLyricIndex = -1;
+                renderLyricsDisplay();
+                syncToCloud();
             }
 
             function renderLyricsDisplay() {
@@ -3289,6 +3401,9 @@
                     renderLyricsDisplay();
                     syncToCloud();
                 });
+                dom.lyricsTapStartBtn.addEventListener("click", startLyricsTapSync);
+                dom.lyricsTapNextBtn.addEventListener("click", captureNextLyricTimestamp);
+                dom.lyricsTapResetBtn.addEventListener("click", resetLyricsTapSync);
                 dom.lyricsSaveBtn.addEventListener("click", () => {
                     saveCurrentMeta();
                     state.activeLyrics = parseLyrics(dom.lyricsInput.value);
@@ -3370,6 +3485,9 @@
                     if (event.code === "Space") {
                         event.preventDefault();
                         togglePlay();
+                    } else if (event.key === "Enter" && dom.lyricsModal.classList.contains("open") && state.lyricsTapSync.active) {
+                        event.preventDefault();
+                        captureNextLyricTimestamp();
                     } else if (event.code === "ArrowRight") {
                         event.preventDefault();
                         skipTime(10);
