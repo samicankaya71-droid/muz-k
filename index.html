@@ -712,6 +712,180 @@
             letter-spacing: 0.18em;
         }
 
+        .floating-panel {
+            position: fixed;
+            top: 72px;
+            left: 320px;
+            width: 520px;
+            height: 720px;
+            min-width: 320px;
+            min-height: 260px;
+            z-index: 6200;
+            display: none;
+            resize: both;
+            overflow: auto;
+            border-radius: 26px;
+            border: 1px solid rgba(255,255,255,.08);
+            background: var(--panel);
+            backdrop-filter: blur(24px);
+            box-shadow: 0 35px 80px rgba(0,0,0,.45);
+            animation: panelIn .28s ease;
+        }
+
+        .floating-panel.open {
+            display: block;
+        }
+
+        @keyframes panelIn {
+            from { opacity: 0; transform: translateY(20px) scale(.98); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        .floating-panel-inner {
+            padding: 20px;
+            min-height: 100%;
+        }
+
+        .floating-close {
+            position: sticky;
+            top: 8px;
+            left: 8px;
+            width: 34px;
+            height: 34px;
+            border-radius: 999px;
+            background: rgba(255,255,255,.08);
+            color: #fff;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            opacity: .2;
+            transition: .2s ease;
+            z-index: 3;
+        }
+
+        .floating-close:hover {
+            opacity: 1;
+        }
+
+        .floating-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin: 6px 0 16px;
+        }
+
+        .floating-header h2 {
+            margin: 0;
+            font-size: 18px;
+            letter-spacing: .08em;
+        }
+
+        .floating-sub {
+            color: var(--muted);
+            font-size: 11px;
+            margin-top: 4px;
+            letter-spacing: .12em;
+        }
+
+        .lyrics-view-art {
+            width: 220px;
+            height: 220px;
+            margin: 0 auto 16px;
+            border-radius: 26px;
+            object-fit: cover;
+            display: block;
+            background: rgba(255,255,255,.04);
+            border: 1px solid rgba(255,255,255,.06);
+            box-shadow: 0 24px 45px rgba(0,0,0,.35);
+        }
+
+        .lyrics-view-copy {
+            text-align: center;
+            margin-bottom: 16px;
+        }
+
+        .lyrics-view-copy h3 {
+            margin: 0;
+            font-size: 28px;
+        }
+
+        .lyrics-view-copy p {
+            margin: 8px 0 0;
+            color: var(--muted);
+        }
+
+        .floating-player {
+            padding: 14px 16px;
+            border-radius: 18px;
+            background: rgba(255,255,255,.05);
+            border: 1px solid rgba(255,255,255,.06);
+            margin-bottom: 18px;
+        }
+
+        .floating-player-controls {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 18px;
+            margin-bottom: 10px;
+        }
+
+        .floating-player-btn {
+            width: 46px;
+            height: 46px;
+            border-radius: 999px;
+            background: rgba(255,255,255,.08);
+            color: #fff;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+
+        .floating-player-btn.primary {
+            background: #fff;
+            color: #000;
+        }
+
+        .floating-progress {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .floating-progress .time {
+            width: 40px;
+            font-size: 11px;
+            color: var(--muted);
+        }
+
+        .floating-progress .time.right {
+            text-align: right;
+        }
+
+        .lyrics-flow-large {
+            text-align: center;
+            max-height: calc(100% - 380px);
+            overflow: auto;
+            padding: 10px 8px 20px;
+        }
+
+        .lyrics-flow-line {
+            padding: 10px 12px;
+            margin-bottom: 8px;
+            border-radius: 16px;
+            color: rgba(255,255,255,.52);
+            transition: .22s ease;
+            white-space: pre-wrap;
+        }
+
+        .lyrics-flow-line.active {
+            color: #fff;
+            background: var(--accent-mid);
+            transform: scale(1.02);
+        }
+
         .editor-player {
             width: 100%;
             margin-top: 14px;
@@ -1310,7 +1484,8 @@
         <div class="nav-link" data-modal-target="editor-modal"><span>🎚</span><span>DÜZENLEYİCİ</span></div>
         <div class="nav-link" data-modal-target="lyrics-modal"><span>📝</span><span>ŞARKI SÖZLERİ</span></div>
         <div id="open-lyrics-page-nav" class="nav-link"><span>📝</span><span>ŞARKI SÖZLERİ</span></div>
-        <div class="nav-link" data-modal-target="analytics-modal"><span>📊</span><span>ANALİZ</span></div>
+        <div id="open-history-panel-nav" class="nav-link"><span>🕘</span><span>GEÇMİŞ</span></div>
+        <div id="open-analytics-panel-nav" class="nav-link"><span>📊</span><span>ANALİZ</span></div>
         <div class="nav-link" data-modal-target="scanner-modal"><span>🧪</span><span>LİNK TARAMA</span></div>
         <div id="sidebar-playlists"></div>
         <div class="sidebar-widget">
@@ -1448,6 +1623,77 @@
             <input id="volume-range" class="range" type="range" min="0" max="1" step="0.01" value="1" style="width:80px">
         </div>
     </div>
+
+    <section id="lyrics-view-panel" class="floating-panel">
+        <div class="floating-panel-inner">
+            <button id="lyrics-view-close" class="floating-close" type="button">✕</button>
+            <div class="floating-header">
+                <div>
+                    <h2>ŞARKI SÖZLERİ</h2>
+                    <div class="floating-sub">ARGAN MOBILYA AUDIO SUITE</div>
+                </div>
+            </div>
+            <img id="lyrics-view-art" class="lyrics-view-art" src="./logo.png" alt="Kapak">
+            <div class="lyrics-view-copy">
+                <h3 id="lyrics-view-title">Şarkı Seçilmedi</h3>
+                <p id="lyrics-view-subtitle">Argan Mobilya</p>
+            </div>
+            <div class="floating-player">
+                <div class="floating-player-controls">
+                    <button id="lyrics-view-prev" class="floating-player-btn" type="button">⏮</button>
+                    <button id="lyrics-view-play" class="floating-player-btn primary" type="button">▶</button>
+                    <button id="lyrics-view-next" class="floating-player-btn" type="button">⏭</button>
+                </div>
+                <div class="floating-progress">
+                    <span id="lyrics-view-cur" class="time right">0:00</span>
+                    <div id="lyrics-view-seek" class="bar-bg"><div id="lyrics-view-fill" class="bar-fill"></div></div>
+                    <span id="lyrics-view-dur" class="time">0:00</span>
+                </div>
+            </div>
+            <div id="lyrics-view-flow" class="lyrics-flow-large"></div>
+        </div>
+    </section>
+
+    <section id="history-panel" class="floating-panel" style="left:420px; width:460px; height:560px;">
+        <div class="floating-panel-inner">
+            <button id="history-panel-close" class="floating-close" type="button">✕</button>
+            <div class="floating-header">
+                <div>
+                    <h2>DİNLEME GEÇMİŞİ</h2>
+                    <div class="floating-sub">EN SON DİNLENEN ŞARKILAR</div>
+                </div>
+            </div>
+            <div id="history-panel-list" class="stats-list"></div>
+        </div>
+    </section>
+
+    <section id="analytics-panel" class="floating-panel" style="left:470px; width:560px; height:640px;">
+        <div class="floating-panel-inner">
+            <button id="analytics-panel-close" class="floating-close" type="button">✕</button>
+            <div class="floating-header">
+                <div>
+                    <h2>DİNLEME ANALİZİ</h2>
+                    <div class="floating-sub">TOPLAM DİNLEME, SANATÇI VE ŞARKI DAĞILIMI</div>
+                </div>
+            </div>
+            <select id="analytics-panel-range" class="analytics-range" style="max-width:260px;">
+                <option value="1">Son 24 Saat</option>
+                <option value="7">Son 1 Hafta</option>
+                <option value="30">Son 1 Ay</option>
+            </select>
+            <div id="analytics-panel-overview" class="analytics-total"></div>
+            <div class="analytics-grid">
+                <div class="card">
+                    <h3>Top Şarkılar</h3>
+                    <div id="analytics-panel-songs" class="stats-list"></div>
+                </div>
+                <div class="card">
+                    <h3>Sanatçı / Hashtag</h3>
+                    <div id="analytics-panel-artists" class="stats-list"></div>
+                </div>
+            </div>
+        </div>
+    </section>
 
     <section id="settings-modal" class="full-modal">
         <span class="close-x" data-close-modal="settings-modal">✕</span>
@@ -1757,6 +2003,8 @@
                 barTitle: document.getElementById("bar-title"),
                 barArtist: document.getElementById("bar-artist"),
                 openLyricsPageNav: document.getElementById("open-lyrics-page-nav"),
+                openHistoryPanelNav: document.getElementById("open-history-panel-nav"),
+                openAnalyticsPanelNav: document.getElementById("open-analytics-panel-nav"),
                 artistChips: document.getElementById("artist-chips"),
                 tagEditor: document.getElementById("tag-editor"),
                 tagEditorBody: document.getElementById("tag-editor-body"),
@@ -1790,6 +2038,28 @@
                 historyMiniList: document.getElementById("history-mini-list"),
                 sidebarAnalyticsRange: document.getElementById("sidebar-analytics-range"),
                 sidebarAnalyticsSummary: document.getElementById("sidebar-analytics-summary"),
+                lyricsViewPanel: document.getElementById("lyrics-view-panel"),
+                lyricsViewClose: document.getElementById("lyrics-view-close"),
+                lyricsViewArt: document.getElementById("lyrics-view-art"),
+                lyricsViewTitle: document.getElementById("lyrics-view-title"),
+                lyricsViewSubtitle: document.getElementById("lyrics-view-subtitle"),
+                lyricsViewPrev: document.getElementById("lyrics-view-prev"),
+                lyricsViewPlay: document.getElementById("lyrics-view-play"),
+                lyricsViewNext: document.getElementById("lyrics-view-next"),
+                lyricsViewCur: document.getElementById("lyrics-view-cur"),
+                lyricsViewDur: document.getElementById("lyrics-view-dur"),
+                lyricsViewSeek: document.getElementById("lyrics-view-seek"),
+                lyricsViewFill: document.getElementById("lyrics-view-fill"),
+                lyricsViewFlow: document.getElementById("lyrics-view-flow"),
+                historyPanel: document.getElementById("history-panel"),
+                historyPanelClose: document.getElementById("history-panel-close"),
+                historyPanelList: document.getElementById("history-panel-list"),
+                analyticsPanel: document.getElementById("analytics-panel"),
+                analyticsPanelClose: document.getElementById("analytics-panel-close"),
+                analyticsPanelRange: document.getElementById("analytics-panel-range"),
+                analyticsPanelOverview: document.getElementById("analytics-panel-overview"),
+                analyticsPanelSongs: document.getElementById("analytics-panel-songs"),
+                analyticsPanelArtists: document.getElementById("analytics-panel-artists"),
                 analyticsModal: document.getElementById("analytics-modal"),
                 analyticsRange: document.getElementById("analytics-range"),
                 refreshAnalyticsBtn: document.getElementById("refresh-analytics-btn"),
@@ -2113,6 +2383,12 @@
                 return song?.album || "";
             }
 
+            function toggleFloatingPanel(panel, force) {
+                if (!panel) return;
+                const open = typeof force === "boolean" ? force : !panel.classList.contains("open");
+                panel.classList.toggle("open", open);
+            }
+
             function getSongTags(song) {
                 const meta = state.songMeta[song?.url] || DEFAULT_META;
                 const tokens = (meta.credits || "").match(/#(\w+)/g) || [];
@@ -2271,10 +2547,17 @@
                     item.append(strong, span);
                     dom.historyMiniList.appendChild(item);
                 });
+                renderHistoryPanel();
             }
 
             function renderAnalytics() {
-                const days = Number(dom.sidebarAnalyticsRange?.value || dom.analyticsRange?.value || state.analyticsRangeDays || 1);
+                const days = Number(
+                    dom.sidebarAnalyticsRange?.value ||
+                    dom.analyticsPanelRange?.value ||
+                    dom.analyticsRange?.value ||
+                    state.analyticsRangeDays ||
+                    1
+                );
                 state.analyticsRangeDays = days;
                 const stats = buildAnalytics(days);
                 const hours = (stats.totalSeconds / 3600).toFixed(1);
@@ -2296,11 +2579,37 @@
                 dom.sidebarAnalyticsSummary.appendChild(topArtists);
 
                 if (dom.analyticsRange) dom.analyticsRange.value = String(days);
+                if (dom.analyticsPanelRange) dom.analyticsPanelRange.value = String(days);
                 if (dom.analyticsOverview) {
                     dom.analyticsOverview.textContent = `${days === 1 ? "Son 24 saatte" : `Son ${days} günde`} toplam ${hours} saat dinleme yapıldı.`;
                     renderStatsList(dom.analyticsSongs, stats.songs, "song");
                     renderStatsList(dom.analyticsArtists, stats.artists, "artist");
                 }
+                if (dom.analyticsPanelOverview) {
+                    dom.analyticsPanelOverview.textContent = `${days === 1 ? "Son 24 saatte" : `Son ${days} günde`} toplam ${hours} saat • ${stats.sessionsCount} oturum`;
+                    renderStatsList(dom.analyticsPanelSongs, stats.songs, "song");
+                    renderStatsList(dom.analyticsPanelArtists, stats.artists, "artist");
+                }
+            }
+
+            function renderHistoryPanel() {
+                clearNode(dom.historyPanelList);
+                const entries = state.playHistory.slice(0, 60);
+                if (!entries.length) {
+                    const empty = document.createElement("div");
+                    empty.className = "empty-state";
+                    empty.textContent = "Henüz geçmiş yok.";
+                    dom.historyPanelList.appendChild(empty);
+                    return;
+                }
+
+                entries.forEach((entry) => {
+                    const item = document.createElement("div");
+                    item.className = "stats-item";
+                    const when = new Date(entry.playedAt || Date.now()).toLocaleString("tr-TR");
+                    item.innerHTML = `<strong>${entry.title} • ${entry.artist}</strong><span>${when}${entry.album ? " • " + entry.album : ""}</span>`;
+                    dom.historyPanelList.appendChild(item);
+                });
             }
 
             function renderScannerResults() {
@@ -2320,6 +2629,45 @@
                     item.innerHTML = `<strong>${song.title} • ${song.artist}</strong><span>${song.url}</span>`;
                     dom.scannerResults.appendChild(item);
                 });
+            }
+
+            function syncLyricsWindow(forceValueSync = false) {
+                const panel = dom.lyricsViewPanel;
+                if (!panel) return;
+                const song = getCurrentSong();
+                const meta = song ? (state.songMeta[song.url] || DEFAULT_META) : DEFAULT_META;
+                const art = meta.art || LOGO_SRC;
+                dom.lyricsViewArt.src = art;
+                dom.lyricsViewTitle.textContent = song?.title || "Şarkı Seçilmedi";
+                dom.lyricsViewSubtitle.textContent = song ? `${song.artist}${song.album ? " • " + song.album : ""}` : "Argan Mobilya";
+
+                const player = getPlayer();
+                const current = player.currentTime || 0;
+                const duration = player.duration || 0;
+                dom.lyricsViewCur.textContent = formatTime(current);
+                dom.lyricsViewDur.textContent = formatTime(duration);
+                dom.lyricsViewFill.style.width = duration ? ((current / duration) * 100) + "%" : "0%";
+                dom.lyricsViewPlay.textContent = player.paused ? "▶" : "⏸";
+
+                clearNode(dom.lyricsViewFlow);
+                if (!state.activeLyrics.length) {
+                    const empty = document.createElement("div");
+                    empty.className = "lyrics-empty";
+                    empty.textContent = "Bu parça için söz eklenmedi.";
+                    dom.lyricsViewFlow.appendChild(empty);
+                    return;
+                }
+
+                state.activeLyrics.forEach((line, index) => {
+                    const row = document.createElement("div");
+                    row.className = "lyrics-flow-line";
+                    if (index === state.activeLyricIndex) row.classList.add("active");
+                    row.textContent = line.text;
+                    dom.lyricsViewFlow.appendChild(row);
+                });
+
+                const active = dom.lyricsViewFlow.querySelector(".lyrics-flow-line.active");
+                if (active && !forceValueSync) active.scrollIntoView({ block: "nearest" });
             }
 
             function testAudioUrl(url, timeoutMs = 9000) {
@@ -4137,8 +4485,10 @@
                     state.searchTerm = dom.searchInput.value;
                     refreshQueueAndRender();
                 });
-                dom.openLyricsEditor.addEventListener("click", ensureLyricsWindow);
-                dom.openLyricsPageNav?.addEventListener("click", ensureLyricsWindow);
+                dom.openLyricsEditor.addEventListener("click", () => toggleFloatingPanel(dom.lyricsViewPanel, true));
+                dom.openLyricsPageNav?.addEventListener("click", () => toggleModal("lyrics-modal", true));
+                dom.openHistoryPanelNav?.addEventListener("click", () => toggleFloatingPanel(dom.historyPanel, true));
+                dom.openAnalyticsPanelNav?.addEventListener("click", () => toggleFloatingPanel(dom.analyticsPanel, true));
                 document.querySelector('[data-modal-target="lyrics-modal"]')?.setAttribute("style", "display:none;");
                 dom.creditsHotspot.addEventListener("click", () => {
                     const willOpen = !dom.tagEditor.classList.contains("open");
@@ -4265,8 +4615,16 @@
                 });
                 dom.sidebarAnalyticsRange?.addEventListener("change", renderAnalytics);
                 dom.analyticsRange?.addEventListener("change", renderAnalytics);
+                dom.analyticsPanelRange?.addEventListener("change", renderAnalytics);
                 dom.refreshAnalyticsBtn?.addEventListener("click", renderAnalytics);
                 dom.scanLinksBtn?.addEventListener("click", scanBrokenLinks);
+                dom.lyricsViewClose?.addEventListener("click", () => toggleFloatingPanel(dom.lyricsViewPanel, false));
+                dom.historyPanelClose?.addEventListener("click", () => toggleFloatingPanel(dom.historyPanel, false));
+                dom.analyticsPanelClose?.addEventListener("click", () => toggleFloatingPanel(dom.analyticsPanel, false));
+                dom.lyricsViewPrev?.addEventListener("click", manualPrev);
+                dom.lyricsViewNext?.addEventListener("click", manualNext);
+                dom.lyricsViewPlay?.addEventListener("click", togglePlay);
+                dom.lyricsViewSeek?.addEventListener("click", seekByEvent);
 
                 window.addEventListener("beforeunload", () => {
                     closeListenSession(getPlayer());
