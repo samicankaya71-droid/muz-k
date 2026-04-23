@@ -1077,6 +1077,7 @@
         <div class="nav-link" data-view="fav"><span>💖</span><span>FAVORİLER</span></div>
         <div class="nav-link" data-modal-target="playlist-modal"><span>📂</span><span>LİSTELER</span></div>
         <div class="nav-link" data-modal-target="editor-modal"><span>🎚</span><span>DÜZENLEYİCİ</span></div>
+        <div class="nav-link" data-modal-target="lyrics-modal"><span>📝</span><span>ŞARKI SÖZLERİ</span></div>
         <div id="sidebar-playlists"></div>
         <div style="margin-top:auto; padding-bottom:30px;">
             <div class="nav-link" data-modal-target="db-modal">👤 ARŞİV</div>
@@ -1140,7 +1141,7 @@
         <div id="lyrics-display" class="lyrics-display">
             <div class="lyrics-empty">Şarkı sözü eklenmedi.</div>
         </div>
-        <textarea id="lyrics-input" class="text-area" placeholder="LRC destekli sözler: [00:12.50] İlk satır"></textarea>
+        <button id="open-lyrics-editor" class="ghost-btn" type="button" style="width:100%; margin-top:14px;">Şarkı Sözlerini Aç</button>
 
         <div class="subsection">
             <div class="subsection-title">PLAYLIST YÖNETİMİ</div>
@@ -1333,6 +1334,19 @@
         </div>
     </section>
 
+    <section id="lyrics-modal" class="full-modal">
+        <span class="close-x" data-close-modal="lyrics-modal">✕</span>
+        <h1>ŞARKI SÖZLERİ</h1>
+        <p class="muted">Düz söz yapıştırırsan otomatik zamanlama çıkarırım. LRC yazarsan o zamanları doğrudan kullanırım.</p>
+        <div class="editor-card" style="max-width:900px;">
+            <div class="editor-actions" style="margin-top:0; margin-bottom:16px;">
+                <button id="lyrics-auto-btn" class="ghost-btn" type="button">Otomatik Zamanla</button>
+                <button id="lyrics-save-btn" class="panel-btn" type="button" style="width:auto;">Kaydet</button>
+            </div>
+            <textarea id="lyrics-input" class="text-area" placeholder="LRC destekli sözler: [00:12.50] İlk satır" style="min-height:420px; margin-top:0;"></textarea>
+        </div>
+    </section>
+
     <audio id="pa" preload="none"></audio>
     <audio id="pb" preload="none"></audio>
 
@@ -1385,6 +1399,7 @@
                 progressTimer: null,
                 lastSyncOk: null,
                 pendingRestoreTime: null,
+                preloadedNextUrl: "",
                 activeLyrics: [],
                 activeLyricIndex: -1,
                 editor: {
@@ -1451,6 +1466,10 @@
                 playlistModal: document.getElementById("playlist-modal"),
                 dbModal: document.getElementById("db-modal"),
                 editorModal: document.getElementById("editor-modal"),
+                lyricsModal: document.getElementById("lyrics-modal"),
+                openLyricsEditor: document.getElementById("open-lyrics-editor"),
+                lyricsAutoBtn: document.getElementById("lyrics-auto-btn"),
+                lyricsSaveBtn: document.getElementById("lyrics-save-btn"),
                 manualSyncBtn: document.getElementById("manual-sync-btn"),
                 crossfadeRange: document.getElementById("crossfade-range"),
                 cfVal: document.getElementById("cf-val"),
@@ -1899,6 +1918,36 @@
                     if (b.time === null) return -1;
                     return a.time - b.time;
                 });
+            }
+
+            function hasTimedLyrics(rawText) {
+                return /\[\d{1,2}:\d{2}(?:\.\d{1,2})?\]/.test(String(rawText || ""));
+            }
+
+            function formatLrcTimestamp(seconds) {
+                const safe = Math.max(0, Number(seconds) || 0);
+                const minutes = Math.floor(safe / 60);
+                const secs = Math.floor(safe % 60);
+                const cents = Math.floor((safe - Math.floor(safe)) * 100);
+                return "[" + String(minutes).padStart(2, "0") + ":" + String(secs).padStart(2, "0") + "." + String(cents).padStart(2, "0") + "]";
+            }
+
+            function buildAutoTimedLyrics(rawText, duration) {
+                const plainLines = String(rawText || "")
+                    .split(/\r?\n/)
+                    .map((line) => line.trim())
+                    .filter(Boolean);
+
+                if (!plainLines.length) return "";
+
+                const totalDuration = Math.max(plainLines.length + 4, Number(duration) || 0);
+                const startOffset = Math.min(5, Math.max(0, totalDuration * 0.04));
+                const usable = Math.max(plainLines.length, totalDuration - startOffset - 1);
+                const step = usable / plainLines.length;
+
+                return plainLines
+                    .map((line, index) => formatLrcTimestamp(startOffset + step * index) + " " + line)
+                    .join("\n");
             }
 
             function renderLyricsDisplay() {
@@ -3018,6 +3067,22 @@
                 window.alert(label + " çalınamadı. Link doğrudan MP3/stream linki olmayabilir veya kaynak erişimi engelliyor olabilir.");
             }
 
+            function primeNextTrack() {
+                if (state.isCrossfading || state.crossfadeSeconds <= 0) return;
+                const nextIndex = pickNextIndex();
+                if (nextIndex < 0) return;
+                const nextSong = state.currentQueue[nextIndex];
+                if (!nextSong?.url) return;
+
+                const inactive = getInactivePlayer();
+                if (state.preloadedNextUrl === nextSong.url && inactive.src) return;
+
+                state.preloadedNextUrl = nextSong.url;
+                inactive.preload = "auto";
+                inactive.src = nextSong.url;
+                inactive.load();
+            }
+
             async function crossFadeToNext() {
                 if (state.isCrossfading || state.crossfadeSeconds <= 0 || state.currentQueue.length < 1) return;
 
@@ -3078,6 +3143,9 @@
                 if (state.crossfadeSeconds <= 0 || state.repeatMode === 2) return;
                 if (!player.duration || player.paused) return;
                 const remaining = player.duration - player.currentTime;
+                if (remaining <= state.crossfadeSeconds + 8) {
+                    primeNextTrack();
+                }
                 if (remaining <= state.crossfadeSeconds + 0.05) {
                     crossFadeToNext();
                 }
@@ -3174,6 +3242,7 @@
                     state.searchTerm = dom.searchInput.value;
                     refreshQueueAndRender();
                 });
+                dom.openLyricsEditor.addEventListener("click", () => toggleModal("lyrics-modal", true));
                 dom.creditsHotspot.addEventListener("click", () => {
                     const willOpen = !dom.tagEditor.classList.contains("open");
                     dom.tagEditor.classList.toggle("open", willOpen);
@@ -3201,6 +3270,32 @@
                     state.activeLyricIndex = -1;
                     renderLyricsDisplay();
                     syncToCloud();
+                });
+                dom.lyricsAutoBtn.addEventListener("click", () => {
+                    const player = getPlayer();
+                    const duration = player.duration || getCurrentSong()?.duration || 0;
+                    if (!dom.lyricsInput.value.trim()) {
+                        window.alert("Önce sözleri yapıştır.");
+                        return;
+                    }
+                    if (hasTimedLyrics(dom.lyricsInput.value)) {
+                        window.alert("Bu sözlerde zaten zaman kodu var.");
+                        return;
+                    }
+                    dom.lyricsInput.value = buildAutoTimedLyrics(dom.lyricsInput.value, duration || 180);
+                    saveCurrentMeta();
+                    state.activeLyrics = parseLyrics(dom.lyricsInput.value);
+                    state.activeLyricIndex = -1;
+                    renderLyricsDisplay();
+                    syncToCloud();
+                });
+                dom.lyricsSaveBtn.addEventListener("click", () => {
+                    saveCurrentMeta();
+                    state.activeLyrics = parseLyrics(dom.lyricsInput.value);
+                    state.activeLyricIndex = -1;
+                    renderLyricsDisplay();
+                    syncToCloud();
+                    toggleModal("lyrics-modal", false);
                 });
 
                 document.querySelectorAll("[data-play-toggle]").forEach((node) => {
