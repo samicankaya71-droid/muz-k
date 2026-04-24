@@ -733,6 +733,21 @@
             animation: panelIn .38s cubic-bezier(.2,.8,.2,1);
         }
 
+        .floating-panel::after {
+            content: "";
+            position: absolute;
+            right: 12px;
+            bottom: 12px;
+            width: 18px;
+            height: 18px;
+            border-right: 2px solid rgba(255,255,255,.32);
+            border-bottom: 2px solid rgba(255,255,255,.32);
+            opacity: .75;
+            pointer-events: none;
+            clip-path: polygon(100% 0, 0 100%, 100% 100%);
+            filter: drop-shadow(0 0 8px rgba(255,255,255,.1));
+        }
+
         .floating-panel.open {
             display: block;
         }
@@ -794,9 +809,9 @@
         }
 
         .lyrics-view-art {
-            width: 220px;
-            height: 220px;
-            margin: 0 auto 16px;
+            width: 180px;
+            height: 180px;
+            margin: 0 auto 14px;
             border-radius: 26px;
             object-fit: cover;
             display: block;
@@ -807,8 +822,9 @@
 
         #lyrics-view-panel .floating-panel-inner {
             background:
-                radial-gradient(circle at top, rgba(0,242,255,.18), transparent 28%),
-                radial-gradient(circle at bottom, rgba(255,255,255,.05), transparent 36%),
+                radial-gradient(circle at 50% 0%, rgba(0,242,255,.18), transparent 28%),
+                radial-gradient(circle at 50% 20%, rgba(255,255,255,.07), transparent 34%),
+                radial-gradient(circle at 50% 100%, rgba(0,242,255,.09), transparent 40%),
                 linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.015));
         }
 
@@ -833,6 +849,7 @@
             background: rgba(255,255,255,.05);
             border: 1px solid rgba(255,255,255,.06);
             margin-bottom: 18px;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.06), 0 12px 30px rgba(0,0,0,.18);
         }
 
         .floating-player-controls {
@@ -877,25 +894,111 @@
         }
 
         .lyrics-flow-large {
-            text-align: center;
-            max-height: calc(100% - 380px);
-            overflow: auto;
-            padding: 10px 8px 20px;
+            display: grid;
+            grid-template-rows: repeat(5, minmax(56px, 1fr));
+            align-items: center;
+            gap: 6px;
+            min-height: 340px;
+            padding: 8px 4px 12px;
         }
 
         .lyrics-flow-line {
-            padding: 10px 12px;
-            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 56px;
+            padding: 10px 14px;
             border-radius: 16px;
-            color: rgba(255,255,255,.52);
-            transition: .22s ease;
+            color: rgba(255,255,255,.42);
+            transition: .26s ease;
             white-space: pre-wrap;
+            text-align: center;
+            transform-origin: center center;
+            opacity: .76;
+        }
+
+        .lyrics-flow-line.ghost {
+            opacity: .16;
         }
 
         .lyrics-flow-line.active {
             color: #fff;
-            background: var(--accent-mid);
-            transform: scale(1.02);
+            background: linear-gradient(180deg, rgba(255,255,255,.08), var(--accent-mid));
+            transform: scale(1.04);
+            opacity: 1;
+            box-shadow: 0 0 0 1px rgba(255,255,255,.08), 0 0 28px rgba(0,242,255,.18);
+        }
+
+        .lyrics-flow-line.near {
+            color: rgba(255,255,255,.72);
+            opacity: .92;
+        }
+
+        .lyrics-editor-player {
+            margin: 0 0 18px;
+            padding: 16px 18px;
+            border-radius: 20px;
+            background: rgba(255,255,255,.05);
+            border: 1px solid rgba(255,255,255,.08);
+            box-shadow: 0 18px 35px rgba(0,0,0,.18);
+        }
+
+        .lyrics-editor-copy {
+            margin-bottom: 12px;
+        }
+
+        .lyrics-editor-copy strong,
+        .lyrics-editor-copy span {
+            display: block;
+        }
+
+        .lyrics-editor-copy strong {
+            font-size: 15px;
+        }
+
+        .lyrics-editor-copy span {
+            margin-top: 5px;
+            color: var(--muted);
+            font-size: 11px;
+            letter-spacing: .08em;
+        }
+
+        .lyrics-editor-time-detail {
+            margin-top: 10px;
+            text-align: center;
+            color: rgba(255,255,255,.72);
+            font-size: 11px;
+            letter-spacing: .12em;
+        }
+
+        .analytics-detail-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 12px;
+            margin-bottom: 18px;
+        }
+
+        .analytics-kpi {
+            padding: 16px;
+            border-radius: 18px;
+            background: rgba(255,255,255,.045);
+            border: 1px solid rgba(255,255,255,.08);
+        }
+
+        .analytics-kpi strong,
+        .analytics-kpi span {
+            display: block;
+        }
+
+        .analytics-kpi strong {
+            font-size: 24px;
+            margin-bottom: 6px;
+        }
+
+        .analytics-kpi span {
+            color: var(--muted);
+            font-size: 11px;
+            letter-spacing: .08em;
         }
 
         .editor-player {
@@ -1483,7 +1586,7 @@
 
     <aside id="sidebar">
         <div class="brand">
-            <img class="brand-logo" src="./logo.png" alt="Argan Mobilya logo">
+            <img class="brand-logo" src="./LOGO.PNG" onerror="this.onerror=null;this.src='./logo.png'" alt="Argan Mobilya logo">
             <div class="brand-copy">
                 <div class="brand-title">ARGAN MOBILYA</div>
                 <small>AUDIO SUITE</small>
@@ -1579,7 +1682,7 @@
         <button id="open-lyrics-editor" class="ghost-btn" type="button" style="width:100%; margin-top:14px;">Şarkı Sözlerini Aç</button>
 
         <div class="brand-strip">
-            <img src="./logo.png" alt="Argan Mobilya logo">
+            <img src="./LOGO.PNG" onerror="this.onerror=null;this.src='./logo.png'" alt="Argan Mobilya logo">
             <div>
                 <strong>ARGAN MOBILYA</strong>
                 <span>AUDIO SUITE</span>
@@ -1645,7 +1748,7 @@
                     <div class="floating-sub">ARGAN MOBILYA AUDIO SUITE</div>
                 </div>
             </div>
-            <img id="lyrics-view-art" class="lyrics-view-art" src="./logo.png" alt="Kapak">
+            <img id="lyrics-view-art" class="lyrics-view-art" src="./LOGO.PNG" onerror="this.onerror=null;this.src='./logo.png'" alt="Kapak">
             <div class="lyrics-view-copy">
                 <h3 id="lyrics-view-title">Şarkı Seçilmedi</h3>
                 <p id="lyrics-view-subtitle">Argan Mobilya</p>
@@ -1694,6 +1797,7 @@
                 <option value="30">Son 1 Ay</option>
             </select>
             <div id="analytics-panel-overview" class="analytics-total"></div>
+            <div id="analytics-panel-kpis" class="analytics-detail-grid"></div>
             <div class="analytics-grid">
                 <div class="card">
                     <h3>Top Şarkılar</h3>
@@ -1703,6 +1807,10 @@
                     <h3>Sanatçı / Hashtag</h3>
                     <div id="analytics-panel-artists" class="stats-list"></div>
                 </div>
+            </div>
+            <div class="card" style="margin-top:20px;">
+                <h3>En Son Dinlenenler</h3>
+                <div id="analytics-panel-recent" class="stats-list"></div>
             </div>
         </div>
     </section>
@@ -1853,6 +1961,23 @@
         <h1>ŞARKI SÖZLERİ</h1>
         <p class="muted">Düz söz yapıştırırsan otomatik zamanlama çıkarırım. LRC yazarsan o zamanları doğrudan kullanırım.</p>
         <div class="editor-card" style="max-width:900px;">
+            <div class="lyrics-editor-player">
+                <div class="lyrics-editor-copy">
+                    <strong id="lyrics-editor-title">Şarkı Seçilmedi</strong>
+                    <span id="lyrics-editor-subtitle">Argan Mobilya</span>
+                </div>
+                <div class="floating-player-controls" style="margin-bottom:12px;">
+                    <button id="lyrics-editor-prev" class="floating-player-btn" type="button">⏮</button>
+                    <button id="lyrics-editor-play" class="floating-player-btn primary" type="button">▶</button>
+                    <button id="lyrics-editor-next" class="floating-player-btn" type="button">⏭</button>
+                </div>
+                <div class="floating-progress">
+                    <span id="lyrics-editor-cur" class="time right">0:00</span>
+                    <div id="lyrics-editor-seek" class="bar-bg"><div id="lyrics-editor-fill" class="bar-fill"></div></div>
+                    <span id="lyrics-editor-dur" class="time">0:00</span>
+                </div>
+                <div id="lyrics-editor-time-detail" class="lyrics-editor-time-detail">00:00.00 / 00:00.00</div>
+            </div>
             <div class="editor-actions" style="margin-top:0; margin-bottom:16px;">
                 <button id="lyrics-auto-btn" class="ghost-btn" type="button">Otomatik Zamanla</button>
                 <button id="lyrics-tap-start-btn" class="ghost-btn" type="button">Tap Sync Başlat</button>
@@ -1877,6 +2002,7 @@
             <button id="refresh-analytics-btn" class="ghost-btn" type="button">Analizi Yenile</button>
         </div>
         <div id="analytics-overview" class="analytics-total"></div>
+        <div id="analytics-kpis" class="analytics-detail-grid"></div>
         <div class="analytics-grid">
             <div class="card">
                 <h3>Top Şarkılar</h3>
@@ -1886,6 +2012,10 @@
                 <h3>Sanatçı / Hashtag Dağılımı</h3>
                 <div id="analytics-artists" class="stats-list"></div>
             </div>
+        </div>
+        <div class="card" style="margin-top:20px;">
+            <h3>En Son Dinlenenler</h3>
+            <div id="analytics-recent" class="stats-list"></div>
         </div>
     </section>
 
@@ -1916,7 +2046,7 @@
             const HISTORY_KEY = "u_history";
             const SESSIONS_KEY = "u_sessions";
             const BAD_LINKS_KEY = "u_bad_links";
-            const LOGO_SRC = new URL("./logo.png", window.location.href).href;
+            const LOGO_SRC = new URL("./LOGO.PNG", window.location.href).href;
             const DEFAULT_THEME = {
                 accent: "#00f2ff",
                 bg: "#050505",
@@ -2063,6 +2193,16 @@
                 lyricsViewSeek: document.getElementById("lyrics-view-seek"),
                 lyricsViewFill: document.getElementById("lyrics-view-fill"),
                 lyricsViewFlow: document.getElementById("lyrics-view-flow"),
+                lyricsEditorTitle: document.getElementById("lyrics-editor-title"),
+                lyricsEditorSubtitle: document.getElementById("lyrics-editor-subtitle"),
+                lyricsEditorPrev: document.getElementById("lyrics-editor-prev"),
+                lyricsEditorPlay: document.getElementById("lyrics-editor-play"),
+                lyricsEditorNext: document.getElementById("lyrics-editor-next"),
+                lyricsEditorCur: document.getElementById("lyrics-editor-cur"),
+                lyricsEditorDur: document.getElementById("lyrics-editor-dur"),
+                lyricsEditorSeek: document.getElementById("lyrics-editor-seek"),
+                lyricsEditorFill: document.getElementById("lyrics-editor-fill"),
+                lyricsEditorTimeDetail: document.getElementById("lyrics-editor-time-detail"),
                 historyPanel: document.getElementById("history-panel"),
                 historyPanelClose: document.getElementById("history-panel-close"),
                 historyPanelList: document.getElementById("history-panel-list"),
@@ -2070,14 +2210,18 @@
                 analyticsPanelClose: document.getElementById("analytics-panel-close"),
                 analyticsPanelRange: document.getElementById("analytics-panel-range"),
                 analyticsPanelOverview: document.getElementById("analytics-panel-overview"),
+                analyticsPanelKpis: document.getElementById("analytics-panel-kpis"),
                 analyticsPanelSongs: document.getElementById("analytics-panel-songs"),
                 analyticsPanelArtists: document.getElementById("analytics-panel-artists"),
+                analyticsPanelRecent: document.getElementById("analytics-panel-recent"),
                 analyticsModal: document.getElementById("analytics-modal"),
                 analyticsRange: document.getElementById("analytics-range"),
                 refreshAnalyticsBtn: document.getElementById("refresh-analytics-btn"),
                 analyticsOverview: document.getElementById("analytics-overview"),
+                analyticsKpis: document.getElementById("analytics-kpis"),
                 analyticsSongs: document.getElementById("analytics-songs"),
                 analyticsArtists: document.getElementById("analytics-artists"),
+                analyticsRecent: document.getElementById("analytics-recent"),
                 scannerModal: document.getElementById("scanner-modal"),
                 scanLinksBtn: document.getElementById("scan-links-btn"),
                 scannerStatus: document.getElementById("scanner-status"),
@@ -2549,8 +2693,11 @@
                 return {
                     totalSeconds,
                     sessionsCount: sessions.length,
+                    uniqueSongs: songMap.size,
+                    uniqueArtists: artistMap.size,
                     songs: [...songMap.values()].sort((a, b) => b.seconds - a.seconds).slice(0, 12),
-                    artists: [...artistMap.values()].sort((a, b) => b.seconds - a.seconds).slice(0, 12)
+                    artists: [...artistMap.values()].sort((a, b) => b.seconds - a.seconds).slice(0, 12),
+                    recent: [...sessions].sort((a, b) => (b.endedAt || 0) - (a.endedAt || 0)).slice(0, 12)
                 };
             }
 
@@ -2575,6 +2722,42 @@
                     span.textContent = `${formatTime(item.seconds)} dinlendi • ${item.plays} oturum`;
                     card.append(strong, span);
                     container.appendChild(card);
+                });
+            }
+
+            function renderAnalyticsKpis(container, stats, days) {
+                if (!container) return;
+                clearNode(container);
+                [
+                    { value: formatTime(stats.totalSeconds), label: days === 1 ? "Son 24 Saat" : `Son ${days} Gün` },
+                    { value: String(stats.sessionsCount), label: "Toplam Oturum" },
+                    { value: String(stats.uniqueSongs), label: "Farklı Şarkı" },
+                    { value: String(stats.uniqueArtists), label: "Farklı Sanatçı / Etiket" }
+                ].forEach((item) => {
+                    const card = document.createElement("div");
+                    card.className = "analytics-kpi";
+                    card.innerHTML = `<strong>${item.value}</strong><span>${item.label}</span>`;
+                    container.appendChild(card);
+                });
+            }
+
+            function renderRecentStatsList(container, items) {
+                if (!container) return;
+                clearNode(container);
+                if (!items.length) {
+                    const empty = document.createElement("div");
+                    empty.className = "empty-state";
+                    empty.textContent = "Bu aralıkta yakın geçmiş verisi yok.";
+                    container.appendChild(empty);
+                    return;
+                }
+
+                items.forEach((entry) => {
+                    const item = document.createElement("div");
+                    item.className = "stats-item";
+                    const when = new Date(entry.endedAt || entry.startedAt || Date.now()).toLocaleString("tr-TR");
+                    item.innerHTML = `<strong>${entry.title} • ${entry.artist}</strong><span>${when} • ${formatTime(entry.seconds || 0)}</span>`;
+                    container.appendChild(item);
                 });
             }
 
@@ -2634,13 +2817,17 @@
                 if (dom.analyticsPanelRange) dom.analyticsPanelRange.value = String(days);
                 if (dom.analyticsOverview) {
                     dom.analyticsOverview.textContent = `${days === 1 ? "Son 24 saatte" : `Son ${days} günde`} toplam ${hours} saat dinleme yapıldı.`;
+                    renderAnalyticsKpis(dom.analyticsKpis, stats, days);
                     renderStatsList(dom.analyticsSongs, stats.songs, "song");
                     renderStatsList(dom.analyticsArtists, stats.artists, "artist");
+                    renderRecentStatsList(dom.analyticsRecent, stats.recent);
                 }
                 if (dom.analyticsPanelOverview) {
                     dom.analyticsPanelOverview.textContent = `${days === 1 ? "Son 24 saatte" : `Son ${days} günde`} toplam ${hours} saat • ${stats.sessionsCount} oturum`;
+                    renderAnalyticsKpis(dom.analyticsPanelKpis, stats, days);
                     renderStatsList(dom.analyticsPanelSongs, stats.songs, "song");
                     renderStatsList(dom.analyticsPanelArtists, stats.artists, "artist");
+                    renderRecentStatsList(dom.analyticsPanelRecent, stats.recent);
                 }
             }
 
@@ -2722,46 +2909,6 @@
                 if (active && !forceValueSync) active.scrollIntoView({ block: "nearest" });
             }
 
-            function syncLyricsWindow(forceValueSync = false) {
-                const song = getCurrentSong();
-                const meta = song ? (state.songMeta[song.url] || DEFAULT_META) : DEFAULT_META;
-                const art = meta.art || LOGO_SRC;
-
-                if (!dom.lyricsViewPanel) return;
-
-                dom.lyricsViewArt.src = art;
-                dom.lyricsViewTitle.textContent = song?.title || "Şarkı Seçilmedi";
-                dom.lyricsViewSubtitle.textContent = song ? `${song.artist}${song.album ? " • " + song.album : ""}` : "Argan Mobilya";
-
-                const player = getPlayer();
-                const current = player.currentTime || 0;
-                const duration = player.duration || 0;
-                dom.lyricsViewCur.textContent = formatTime(current);
-                dom.lyricsViewDur.textContent = formatTime(duration);
-                dom.lyricsViewFill.style.width = duration ? ((current / duration) * 100) + "%" : "0%";
-                dom.lyricsViewPlay.textContent = player.paused ? "▶" : "⏸";
-
-                clearNode(dom.lyricsViewFlow);
-                if (!state.activeLyrics.length) {
-                    const empty = document.createElement("div");
-                    empty.className = "lyrics-empty";
-                    empty.textContent = "Bu parça için söz eklenmedi.";
-                    dom.lyricsViewFlow.appendChild(empty);
-                    return;
-                }
-
-                state.activeLyrics.forEach((line, index) => {
-                    const row = document.createElement("div");
-                    row.className = "lyrics-flow-line";
-                    if (index === state.activeLyricIndex) row.classList.add("active");
-                    row.textContent = line.text;
-                    dom.lyricsViewFlow.appendChild(row);
-                });
-
-                const active = dom.lyricsViewFlow.querySelector(".lyrics-flow-line.active");
-                if (active && !forceValueSync) active.scrollIntoView({ block: "nearest" });
-            }
-
             function testAudioUrl(url, timeoutMs = 9000) {
                 return new Promise((resolve) => {
                     const audio = document.createElement("audio");
@@ -2808,160 +2955,6 @@
                 dom.scannerStatus.textContent = "Tarama tamamlandı.";
             }
 
-            function getLyricsWindow() {
-                if (state.lyricsWindow && !state.lyricsWindow.closed) return state.lyricsWindow;
-                return null;
-            }
-
-            function renderLyricsWindowDisplay(lines, activeIndex) {
-                const popup = getLyricsWindow();
-                if (!popup || !popup.document) return;
-                const host = popup.document.getElementById("lyrics-flow");
-                if (!host) return;
-                host.innerHTML = "";
-
-                if (!lines.length) {
-                    host.innerHTML = '<div style="opacity:.55;">Bu parça için söz eklenmedi.</div>';
-                    return;
-                }
-
-                lines.forEach((line, index) => {
-                    const row = popup.document.createElement("div");
-                    row.textContent = line.text;
-                    row.style.padding = "10px 12px";
-                    row.style.borderRadius = "14px";
-                    row.style.marginBottom = "8px";
-                    row.style.whiteSpace = "pre-wrap";
-                    row.style.color = index === activeIndex ? "#fff" : "rgba(255,255,255,.62)";
-                    row.style.background = index === activeIndex ? "rgba(0,242,255,.28)" : "rgba(255,255,255,.04)";
-                    row.style.transform = index === activeIndex ? "translateX(8px) scale(1.01)" : "none";
-                    if (index === activeIndex) row.scrollIntoView({ block: "nearest" });
-                    host.appendChild(row);
-                });
-            }
-
-            function syncLyricsWindow(forceValueSync = false) {
-                const popup = getLyricsWindow();
-                if (!popup || !popup.document) return;
-                const song = getCurrentSong();
-                const meta = song ? (state.songMeta[song.url] || DEFAULT_META) : DEFAULT_META;
-                const art = meta.art || LOGO_SRC;
-                const title = song?.title || "Şarkı Seçilmedi";
-                const artist = song?.artist || "Argan Mobilya";
-                const album = song?.album ? ` • ${song.album}` : "";
-
-                const artNode = popup.document.getElementById("lyrics-art");
-                const titleNode = popup.document.getElementById("lyrics-title");
-                const subNode = popup.document.getElementById("lyrics-sub");
-                const curNode = popup.document.getElementById("lyrics-cur");
-                const durNode = popup.document.getElementById("lyrics-dur");
-                const fillNode = popup.document.getElementById("lyrics-fill");
-                const editor = popup.document.getElementById("lyrics-editor-input");
-
-                if (artNode) artNode.src = art;
-                if (titleNode) titleNode.textContent = title;
-                if (subNode) subNode.textContent = artist + album;
-                if (editor && forceValueSync) editor.value = meta.lyrics || "";
-
-                const player = getPlayer();
-                const current = player.currentTime || 0;
-                const duration = player.duration || 0;
-                if (curNode) curNode.textContent = formatTime(current);
-                if (durNode) durNode.textContent = formatTime(duration);
-                if (fillNode) fillNode.style.width = duration ? ((current / duration) * 100) + "%" : "0%";
-
-                const playBtn = popup.document.getElementById("lyrics-play-toggle");
-                if (playBtn) playBtn.textContent = player.paused ? "▶" : "⏸";
-                renderLyricsWindowDisplay(state.activeLyrics, state.activeLyricIndex);
-            }
-
-            function ensureLyricsWindow() {
-                let popup = getLyricsWindow();
-                if (!popup) {
-                    popup = window.open("", "argan-lyrics-window", "width=760,height=920,resizable=yes,scrollbars=yes");
-                    if (!popup) {
-                        window.alert("Ayrı söz penceresi açılamadı. Tarayıcı popup engelliyor olabilir.");
-                        return null;
-                    }
-
-                    popup.document.write(`<!DOCTYPE html><html lang="tr"><head><meta charset="UTF-8"><title>Argan Mobilya Lyrics</title><style>
-                        body{margin:0;background:#050505;color:#fff;font-family:Montserrat,Arial,sans-serif;padding:22px}
-                        .wrap{max-width:860px;margin:0 auto}
-                        .close-btn{position:fixed;top:14px;left:14px;width:34px;height:34px;border:none;border-radius:999px;background:rgba(255,255,255,.08);color:#fff;cursor:pointer;opacity:.18}
-                        .close-btn:hover{opacity:1}
-                        .brand{display:flex;align-items:center;gap:12px;margin-bottom:18px}
-                        .brand img{width:52px;height:52px;border-radius:16px;object-fit:cover}
-                        .art{width:100%;max-height:320px;object-fit:cover;border-radius:24px;background:#151515}
-                        .title{font-size:34px;font-weight:900;margin:18px 0 6px}
-                        .sub{opacity:.7;margin-bottom:16px}
-                        .controls{display:flex;align-items:center;gap:12px;margin:14px 0 18px}
-                        .btn{border:none;border-radius:14px;background:rgba(255,255,255,.08);color:#fff;padding:12px 16px;cursor:pointer}
-                        .bar{flex:1;height:8px;background:rgba(255,255,255,.08);border-radius:999px;overflow:hidden;cursor:pointer}
-                        .fill{height:100%;width:0;background:#00f2ff}
-                        .times{font-size:12px;opacity:.72;min-width:40px}
-                        .flow{max-height:360px;overflow:auto;padding-right:6px}
-                        .edit{margin-top:16px;padding:16px;border-radius:20px;background:rgba(255,255,255,.04)}
-                        .edit-head{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:12px}
-                        textarea{width:100%;min-height:200px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);color:#fff;border-radius:16px;padding:14px;resize:vertical}
-                    </style></head><body><button class="close-btn" id="lyrics-close">✕</button><div class="wrap">
-                        <div class="brand"><img src="${LOGO_SRC}" alt="logo"><div><strong>ARGAN MOBILYA</strong><div style="font-size:12px;opacity:.62;letter-spacing:.16em;">AUDIO SUITE</div></div></div>
-                        <img id="lyrics-art" class="art" src="${LOGO_SRC}" alt="art">
-                        <div id="lyrics-title" class="title">Şarkı Seçilmedi</div>
-                        <div id="lyrics-sub" class="sub">Argan Mobilya</div>
-                        <div class="controls">
-                            <button id="lyrics-prev" class="btn">⏮</button>
-                            <button id="lyrics-play-toggle" class="btn">▶</button>
-                            <button id="lyrics-next" class="btn">⏭</button>
-                            <span id="lyrics-cur" class="times">0:00</span>
-                            <div id="lyrics-seek" class="bar"><div id="lyrics-fill" class="fill"></div></div>
-                            <span id="lyrics-dur" class="times">0:00</span>
-                        </div>
-                        <div id="lyrics-flow" class="flow"></div>
-                        <div class="edit">
-                            <div class="edit-head"><strong>Söz Düzenleyici</strong><button id="lyrics-save-inline" class="btn">Kaydet</button></div>
-                            <textarea id="lyrics-editor-input" placeholder="Şarkı sözlerini buraya yaz."></textarea>
-                        </div>
-                    </div></body></html>`);
-                    popup.document.close();
-                    popup.document.getElementById("lyrics-close")?.addEventListener("click", () => popup.close());
-                    popup.document.getElementById("lyrics-play-toggle")?.addEventListener("click", () => togglePlay());
-                    popup.document.getElementById("lyrics-prev")?.addEventListener("click", () => manualPrev());
-                    popup.document.getElementById("lyrics-next")?.addEventListener("click", () => manualNext());
-                    popup.document.getElementById("lyrics-seek")?.addEventListener("click", (event) => {
-                        const rect = event.currentTarget.getBoundingClientRect();
-                        const ratio = Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width));
-                        const player = getPlayer();
-                        if (player.duration) {
-                            player.currentTime = ratio * player.duration;
-                            updateProgressUI();
-                        }
-                    });
-                    popup.document.getElementById("lyrics-save-inline")?.addEventListener("click", () => {
-                        const song = getCurrentSong();
-                        if (!song) return;
-                        state.songMeta[song.url] = {
-                            ...(state.songMeta[song.url] || DEFAULT_META),
-                            lyrics: popup.document.getElementById("lyrics-editor-input")?.value || ""
-                        };
-                        saveLocalState();
-                        dom.lyricsInput.value = state.songMeta[song.url].lyrics;
-                        state.activeLyrics = parseLyrics(dom.lyricsInput.value);
-                        state.activeLyricIndex = -1;
-                        renderLyricsDisplay();
-                        syncLyricsWindow(false);
-                        syncToCloud();
-                    });
-                    popup.addEventListener("beforeunload", () => {
-                        state.lyricsWindow = null;
-                    });
-                }
-
-                state.lyricsWindow = popup;
-                syncLyricsWindow(true);
-                popup.focus();
-                return popup;
-            }
-
             function syncLyricsWindow(forceValueSync = false) {
                 const song = getCurrentSong();
                 const meta = song ? (state.songMeta[song.url] || DEFAULT_META) : DEFAULT_META;
@@ -3000,6 +2993,91 @@
 
                 const active = dom.lyricsViewFlow.querySelector(".lyrics-flow-line.active");
                 if (active && !forceValueSync) active.scrollIntoView({ block: "nearest" });
+            }
+
+            function buildLyricsPanelWindow() {
+                if (!state.activeLyrics.length) return [];
+                if (state.activeLyricIndex < 0) {
+                    return state.activeLyrics.slice(0, 5).map((line, index) => ({
+                        ...line,
+                        renderClass: index < 2 ? "near" : ""
+                    }));
+                }
+
+                let start = Math.max(0, state.activeLyricIndex - 2);
+                let end = Math.min(state.activeLyrics.length, start + 5);
+                start = Math.max(0, end - 5);
+
+                return state.activeLyrics.slice(start, end).map((line, offset) => {
+                    const absoluteIndex = start + offset;
+                    const distance = Math.abs(absoluteIndex - state.activeLyricIndex);
+                    return {
+                        ...line,
+                        absoluteIndex,
+                        renderClass: distance === 0 ? "active" : distance === 1 ? "near" : "ghost"
+                    };
+                });
+            }
+
+            function syncLyricsEditorPlayer() {
+                if (!dom.lyricsEditorTitle) return;
+                const song = getCurrentSong();
+                const player = getPlayer();
+                const current = player.currentTime || 0;
+                const duration = player.duration || 0;
+                dom.lyricsEditorTitle.textContent = song?.title || "Şarkı Seçilmedi";
+                dom.lyricsEditorSubtitle.textContent = song ? `${song.artist}${song.album ? " • " + song.album : ""}` : "Argan Mobilya";
+                dom.lyricsEditorCur.textContent = formatTime(current);
+                dom.lyricsEditorDur.textContent = formatTime(duration);
+                dom.lyricsEditorFill.style.width = duration ? ((current / duration) * 100) + "%" : "0%";
+                dom.lyricsEditorPlay.textContent = player.paused ? "▶" : "⏸";
+                dom.lyricsEditorTimeDetail.textContent = `${formatDetailedTime(current)} / ${formatDetailedTime(duration)}`;
+            }
+
+            function syncLyricsWindow(forceValueSync = false) {
+                const song = getCurrentSong();
+                const meta = song ? (state.songMeta[song.url] || DEFAULT_META) : DEFAULT_META;
+                const art = meta.art || LOGO_SRC;
+
+                if (!dom.lyricsViewPanel) return;
+
+                dom.lyricsViewArt.src = art;
+                dom.lyricsViewTitle.textContent = song?.title || "Şarkı Seçilmedi";
+                dom.lyricsViewSubtitle.textContent = song ? `${song.artist}${song.album ? " • " + song.album : ""}` : "Argan Mobilya";
+
+                const player = getPlayer();
+                const current = player.currentTime || 0;
+                const duration = player.duration || 0;
+                dom.lyricsViewCur.textContent = formatTime(current);
+                dom.lyricsViewDur.textContent = formatTime(duration);
+                dom.lyricsViewFill.style.width = duration ? ((current / duration) * 100) + "%" : "0%";
+                dom.lyricsViewPlay.textContent = player.paused ? "▶" : "⏸";
+
+                clearNode(dom.lyricsViewFlow);
+                if (!state.activeLyrics.length) {
+                    const empty = document.createElement("div");
+                    empty.className = "lyrics-empty";
+                    empty.textContent = "Bu parça için söz eklenmedi.";
+                    dom.lyricsViewFlow.appendChild(empty);
+                    return;
+                }
+
+                buildLyricsPanelWindow().forEach((line) => {
+                    const row = document.createElement("div");
+                    row.className = "lyrics-flow-line " + (line.renderClass || "");
+                    row.textContent = line.text;
+                    dom.lyricsViewFlow.appendChild(row);
+                });
+
+                if (forceValueSync) {
+                    dom.lyricsViewFlow.animate(
+                        [
+                            { opacity: 0.76, transform: "translateY(8px)" },
+                            { opacity: 1, transform: "translateY(0)" }
+                        ],
+                        { duration: 220, easing: "ease-out" }
+                    );
+                }
             }
 
             function syncThemeInputs() {
@@ -3960,6 +4038,7 @@
                     clearNode(dom.artistChips);
                     renderLyricsDisplay();
                     renderPlaylistToggles();
+                    syncLyricsEditorPlayer();
                     syncLyricsWindow(true);
                     return;
                 }
@@ -3988,6 +4067,7 @@
                 renderLyricsDisplay();
                 renderPlaylistToggles();
                 applyTheme(meta.art);
+                syncLyricsEditorPlayer();
                 syncLyricsWindow(true);
             }
 
@@ -4398,6 +4478,15 @@
                 return min + ":" + String(sec).padStart(2, "0");
             }
 
+            function formatDetailedTime(seconds) {
+                if (!Number.isFinite(seconds) || seconds < 0) return "00:00.00";
+                const total = Math.max(0, Number(seconds) || 0);
+                const min = Math.floor(total / 60);
+                const sec = Math.floor(total % 60);
+                const centi = Math.floor((total - Math.floor(total)) * 100);
+                return `${String(min).padStart(2, "0")}:${String(sec).padStart(2, "0")}.${String(centi).padStart(2, "0")}`;
+            }
+
             function updateProgressUI() {
                 const player = getPlayer();
                 const duration = player.duration || 0;
@@ -4411,6 +4500,7 @@
                 dom.pcDur.textContent = formatTime(duration);
                 dom.mDur.textContent = formatTime(duration);
                 updateLyricsPlayback(current);
+                syncLyricsEditorPlayer();
                 syncLyricsWindow(false);
                 saveLastSession();
             }
@@ -4420,6 +4510,15 @@
                 document.querySelectorAll("[data-play-toggle]").forEach((button) => {
                     button.textContent = player.paused ? "▶" : "⏸";
                 });
+            }
+
+            function syncPlayButtons() {
+                const player = getPlayer();
+                document.querySelectorAll("[data-play-toggle]").forEach((button) => {
+                    button.textContent = player.paused ? "▶" : "⏸";
+                });
+                if (dom.lyricsEditorPlay) dom.lyricsEditorPlay.textContent = player.paused ? "▶" : "⏸";
+                if (dom.lyricsViewPlay) dom.lyricsViewPlay.textContent = player.paused ? "▶" : "⏸";
             }
 
             function handlePlaybackError(player) {
@@ -4621,7 +4720,10 @@
                     syncLyricsWindow(true);
                     toggleFloatingPanel(dom.lyricsViewPanel, true);
                 });
-                dom.openLyricsPageNav?.addEventListener("click", () => toggleModal("lyrics-modal", true));
+                dom.openLyricsPageNav?.addEventListener("click", () => {
+                    syncLyricsEditorPlayer();
+                    toggleModal("lyrics-modal", true);
+                });
                 dom.openHistoryPanelNav?.addEventListener("click", () => {
                     renderHistoryPanel();
                     toggleFloatingPanel(dom.historyPanel, true);
@@ -4766,6 +4868,10 @@
                 dom.lyricsViewNext?.addEventListener("click", manualNext);
                 dom.lyricsViewPlay?.addEventListener("click", togglePlay);
                 dom.lyricsViewSeek?.addEventListener("click", seekByEvent);
+                dom.lyricsEditorPrev?.addEventListener("click", manualPrev);
+                dom.lyricsEditorNext?.addEventListener("click", manualNext);
+                dom.lyricsEditorPlay?.addEventListener("click", togglePlay);
+                dom.lyricsEditorSeek?.addEventListener("click", seekByEvent);
 
                 window.addEventListener("beforeunload", () => {
                     closeListenSession(getPlayer());
