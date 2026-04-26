@@ -420,6 +420,54 @@
             line-height: 1.7;
         }
 
+        .source-result-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 18px;
+            max-height: 420px;
+            overflow: auto;
+        }
+
+        .source-result-item {
+            width: 100%;
+            padding: 12px 14px;
+            border-radius: 16px;
+            background: rgba(255,255,255,.04);
+            border: 1px solid rgba(255,255,255,.06);
+            text-align: left;
+            color: #fff;
+        }
+
+        .source-result-item strong,
+        .source-result-item span {
+            display: block;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .source-result-item strong {
+            font-size: 13px;
+            margin-bottom: 4px;
+        }
+
+        .source-result-item span {
+            color: var(--muted);
+            font-size: 11px;
+        }
+
+        .source-result-item small {
+            display: inline-block;
+            margin-top: 7px;
+            padding: 4px 8px;
+            border-radius: 999px;
+            background: rgba(255,255,255,.08);
+            color: rgba(255,255,255,.72);
+            font-size: 10px;
+            letter-spacing: .08em;
+        }
+
         body.right-open #main-content {
             margin-right: var(--right-panel-width);
         }
@@ -2300,10 +2348,31 @@
                     trackB: null,
                     renderedUrl: ""
                 },
-                integrations: safeJsonParse(localStorage.getItem("u_integrations"), {
-                    spotify: { input: "", embedUrl: "", presets: [] },
-                    youtube: { input: "", embedUrl: "", presets: [] }
-                })
+                integrations: {
+                    spotify: {
+                        input: "",
+                        embedUrl: "",
+                        presets: [],
+                        clientId: "",
+                        accessToken: "",
+                        refreshToken: "",
+                        expiresAt: 0,
+                        me: null,
+                        searchQuery: "",
+                        searchResults: [],
+                        playlists: []
+                    },
+                    youtube: {
+                        input: "",
+                        embedUrl: "",
+                        presets: [],
+                        apiKey: "",
+                        searchQuery: "",
+                        searchResults: [],
+                        playlists: []
+                    },
+                    ...safeJsonParse(localStorage.getItem("u_integrations"), {})
+                }
             };
 
             function ensureIntegrationScaffold() {
@@ -2744,6 +2813,193 @@
                 localStorage.setItem("u_integrations", JSON.stringify(state.integrations));
             }
 
+            function bytesToBase64Url(bytes) {
+                return btoa(String.fromCharCode(...bytes)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+            }
+
+            function randomVerifier(length = 64) {
+                const array = new Uint8Array(length);
+                crypto.getRandomValues(array);
+                return bytesToBase64Url(array);
+            }
+
+            async function sha256Base64Url(text) {
+                const data = new TextEncoder().encode(text);
+                const hash = await crypto.subtle.digest("SHA-256", data);
+                return bytesToBase64Url(new Uint8Array(hash));
+            }
+
+            async function startSpotifyAuth() {
+                const clientId = (state.integrations.spotify.clientId || "").trim();
+                if (!clientId) {
+                    window.alert("Önce Spotify Client ID gir.");
+                    return;
+                }
+                const verifier = randomVerifier();
+                const challenge = await sha256Base64Url(verifier);
+                const redirectUri = window.location.href.split("?")[0].split("#")[0];
+                const authState = randomVerifier(24);
+                localStorage.setItem("spotify_pkce_verifier", verifier);
+                localStorage.setItem("spotify_auth_state", authState);
+                const scopes = [
+                    "playlist-read-private",
+                    "playlist-read-collaborative",
+                    "user-read-email",
+                    "user-read-private",
+                    "user-read-recently-played"
+                ].join(" ");
+                const authUrl = new URL("https://accounts.spotify.com/authorize");
+                authUrl.searchParams.set("client_id", clientId);
+                authUrl.searchParams.set("response_type", "code");
+                authUrl.searchParams.set("redirect_uri", redirectUri);
+                authUrl.searchParams.set("code_challenge_method", "S256");
+                authUrl.searchParams.set("code_challenge", challenge);
+                authUrl.searchParams.set("state", authState);
+                authUrl.searchParams.set("scope", scopes);
+                window.location.href = authUrl.toString();
+            }
+
+            async function maybeHandleSpotifyCallback() {
+                const url = new URL(window.location.href);
+                const code = url.searchParams.get("code");
+                const callbackState = url.searchParams.get("state");
+                const storedState = localStorage.getItem("spotify_auth_state");
+                const verifier = localStorage.getItem("spotify_pkce_verifier");
+                if (!code || !verifier || !callbackState || callbackState !== storedState) return;
+                const clientId = (state.integrations.spotify.clientId || "").trim();
+                if (!clientId) return;
+                const redirectUri = window.location.href.split("?")[0].split("#")[0];
+                const body = new URLSearchParams({
+                    client_id: clientId,
+                    grant_type: "authorization_code",
+                    code,
+                    redirect_uri: redirectUri,
+                    code_verifier: verifier
+                });
+                const res = await fetch("https://accounts.spotify.com/api/token", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                    body
+                });
+                if (!res.ok) throw new Error("Spotify token alınamadı");
+                const data = await res.json();
+                state.integrations.spotify.accessToken = data.access_token || "";
+                state.integrations.spotify.refreshToken = data.refresh_token || "";
+                state.integrations.spotify.expiresAt = Date.now() + ((data.expires_in || 3600) * 1000);
+                saveIntegrations();
+                localStorage.removeItem("spotify_pkce_verifier");
+                localStorage.removeItem("spotify_auth_state");
+                url.searchParams.delete("code");
+                url.searchParams.delete("state");
+                url.searchParams.delete("iss");
+                window.history.replaceState({}, "", url.toString());
+                await Promise.allSettled([loadSpotifyMe(), loadSpotifyPlaylists()]);
+            }
+
+            async function spotifyApi(path) {
+                const token = state.integrations.spotify.accessToken;
+                if (!token) throw new Error("Spotify girişi yok");
+                const res = await fetch(`https://api.spotify.com/v1/${path}`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                if (!res.ok) throw new Error("Spotify isteği başarısız");
+                return res.json();
+            }
+
+            async function loadSpotifyMe() {
+                const me = await spotifyApi("me");
+                state.integrations.spotify.me = me;
+                saveIntegrations();
+                renderSourceWorkspace();
+            }
+
+            async function loadSpotifyPlaylists() {
+                const data = await spotifyApi("me/playlists?limit=12");
+                state.integrations.spotify.playlists = (data.items || []).map((item) => ({
+                    name: item.name,
+                    embedUrl: parseSpotifyEmbedUrl(item.external_urls?.spotify || ""),
+                    subtitle: `${item.tracks?.total || 0} kayıt`
+                })).filter((item) => item.embedUrl);
+                saveIntegrations();
+                renderSourceWorkspace();
+            }
+
+            async function searchSpotify() {
+                const query = (state.integrations.spotify.searchQuery || "").trim();
+                if (!query) return;
+                const data = await spotifyApi(`search?type=track,album,playlist&limit=8&q=${encodeURIComponent(query)}`);
+                const tracks = (data.tracks?.items || []).map((item) => ({
+                    title: item.name,
+                    subtitle: `${item.artists?.map((artist) => artist.name).join(", ")}${item.album?.name ? " • " + item.album.name : ""}`,
+                    type: "TRACK",
+                    embedUrl: parseSpotifyEmbedUrl(item.external_urls?.spotify || item.uri || "")
+                }));
+                const albums = (data.albums?.items || []).map((item) => ({
+                    title: item.name,
+                    subtitle: `${item.artists?.map((artist) => artist.name).join(", ")}`,
+                    type: "ALBUM",
+                    embedUrl: parseSpotifyEmbedUrl(item.external_urls?.spotify || item.uri || "")
+                }));
+                const playlists = (data.playlists?.items || []).map((item) => ({
+                    title: item.name,
+                    subtitle: `${item.owner?.display_name || "Spotify"}`,
+                    type: "PLAYLIST",
+                    embedUrl: parseSpotifyEmbedUrl(item.external_urls?.spotify || "")
+                }));
+                state.integrations.spotify.searchResults = [...tracks, ...albums, ...playlists].filter((item) => item.embedUrl);
+                saveIntegrations();
+                renderSourceWorkspace();
+            }
+
+            async function searchYouTube() {
+                const key = (state.integrations.youtube.apiKey || "").trim();
+                const query = (state.integrations.youtube.searchQuery || "").trim();
+                if (!key) {
+                    window.alert("Önce YouTube API key gir.");
+                    return;
+                }
+                if (!query) return;
+                const url = new URL("https://www.googleapis.com/youtube/v3/search");
+                url.searchParams.set("part", "snippet");
+                url.searchParams.set("maxResults", "12");
+                url.searchParams.set("q", query);
+                url.searchParams.set("type", "video,playlist");
+                url.searchParams.set("key", key);
+                const res = await fetch(url.toString());
+                if (!res.ok) throw new Error("YouTube araması başarısız");
+                const data = await res.json();
+                state.integrations.youtube.searchResults = (data.items || []).map((item) => {
+                    const videoId = item.id?.videoId || "";
+                    const playlistId = item.id?.playlistId || "";
+                    return {
+                        title: item.snippet?.title || "İsimsiz",
+                        subtitle: item.snippet?.channelTitle || "YouTube",
+                        type: playlistId ? "PLAYLIST" : "VIDEO",
+                        embedUrl: playlistId
+                            ? `https://www.youtube.com/embed/videoseries?list=${playlistId}&autoplay=0&rel=0&modestbranding=1`
+                            : (videoId ? `https://www.youtube.com/embed/${videoId}?autoplay=0&rel=0&modestbranding=1` : "")
+                    };
+                }).filter((item) => item.embedUrl);
+                saveIntegrations();
+                renderSourceWorkspace();
+            }
+
+            function buildServiceResults(kind) {
+                const service = state.integrations[kind];
+                const items = [
+                    ...(kind === "spotify" ? (service.playlists || []) : []),
+                    ...(service.searchResults || [])
+                ];
+                if (!items.length) return `<div class="source-note">Henüz sonuç yok. ${kind === "spotify" ? "Giriş yapıp arama başlatabilir veya playlistlerini çekebilirsin." : "API key ekleyip arama başlatabilirsin."}</div>`;
+                return `<div class="source-result-list">${items.map((item, index) => `
+                    <button class="source-result-item" type="button" data-service-result="${kind}" data-service-result-index="${index}">
+                        <strong>${escapeAttr(item.title || item.name || "Kayıt")}</strong>
+                        <span>${escapeAttr(item.subtitle || "")}</span>
+                        <small>${escapeAttr(item.type || (kind === "spotify" ? "PLAYLIST" : "VIDEO"))}</small>
+                    </button>
+                `).join("")}</div>`;
+            }
+
             function parseSpotifyEmbedUrl(input) {
                 const text = String(input || "").trim();
                 if (!text) return "";
@@ -2902,6 +3158,192 @@
                         if (!preset) return;
                         state.integrations[kind].input = preset.label;
                         state.integrations[kind].embedUrl = preset.embedUrl;
+                        saveIntegrations();
+                        renderSourceWorkspace();
+                    });
+                });
+            }
+
+            function buildSourceWorkspaceHtml() {
+                const mode = state.sourceMode;
+                const isSpotify = mode === "spotify";
+                const service = state.integrations[isSpotify ? "spotify" : "youtube"];
+                const previewTitle = isSpotify ? "Spotify Kaynak Alanı" : "YouTube Kaynak Alanı";
+                const previewCopy = isSpotify
+                    ? "Spotify Client ID ile giriş yap, şarkı ara, playlistlerini çek ve istediğini uygulama içinden aç."
+                    : "YouTube API key ile şarkı, video veya playlist ara; sonucu uygulama kabuğunda aç ve yerel arşivle aynı sitede gez.";
+                const inputPlaceholder = isSpotify
+                    ? "Spotify track/album/playlist linki veya spotify:track:... URI"
+                    : "YouTube video veya playlist linki";
+                const buttonLabel = isSpotify ? "Spotify Yükle" : "YouTube Yükle";
+                const badgeLabel = isSpotify ? "Spotify Beta" : "YouTube Beta";
+                const embed = service.embedUrl
+                    ? `<iframe allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy" src="${escapeAttr(service.embedUrl)}"></iframe>`
+                    : `<div class="source-empty">${isSpotify ? "Spotify track, album veya playlist linkini girerek bu alanı doldurabilirsin." : "YouTube video ya da playlist linkini girerek bu alanı doldurabilirsin."}<br><br>Bu mod uygulamanın içinde kalır; ayrı site açılmaz.</div>`;
+
+                return `
+                    <div class="source-shell">
+                        <section class="source-card">
+                            <div class="source-kicker">${isSpotify ? "SPOTIFY INTEGRATION" : "YOUTUBE INTEGRATION"}</div>
+                            <h2 class="source-heading">${isSpotify ? "Spotify Modu" : "YouTube Modu"}</h2>
+                            <p class="source-copy">${previewCopy}</p>
+                            <div class="source-form">
+                                ${isSpotify ? `
+                                    <input id="service-spotify-client-id" class="text-input" type="text" placeholder="Spotify Client ID" value="${escapeAttr(service.clientId || "")}">
+                                    <div class="source-form-row">
+                                        <button id="service-spotify-login" class="ghost-btn" type="button">${service.accessToken ? "Spotify Bağlı" : "Spotify Giriş"}</button>
+                                        <button id="service-spotify-playlists" class="ghost-btn" type="button">Playlistleri Çek</button>
+                                    </div>
+                                    <input id="service-search-input" class="text-input" type="text" placeholder="Spotify'da şarkı, albüm veya playlist ara" value="${escapeAttr(service.searchQuery || "")}">
+                                    <div class="source-form-row">
+                                        <button id="service-search-run" class="panel-btn" type="button" style="width:auto; padding:0 22px;">Spotify Ara</button>
+                                    </div>
+                                ` : `
+                                    <input id="service-youtube-api-key" class="text-input" type="text" placeholder="YouTube Data API Key" value="${escapeAttr(service.apiKey || "")}">
+                                    <input id="service-search-input" class="text-input" type="text" placeholder="YouTube'da şarkı, video veya playlist ara" value="${escapeAttr(service.searchQuery || "")}">
+                                    <div class="source-form-row">
+                                        <button id="service-search-run" class="panel-btn" type="button" style="width:auto; padding:0 22px;">YouTube Ara</button>
+                                    </div>
+                                `}
+                            </div>
+                            <div class="source-form">
+                                <input id="service-source-input" class="text-input" type="text" placeholder="${escapeAttr(inputPlaceholder)}" value="${escapeAttr(service.input || "")}">
+                                <div class="source-form-row">
+                                    <button id="service-source-load" class="panel-btn" type="button" style="width:auto; padding:0 22px;">${buttonLabel}</button>
+                                    <button id="service-source-clear" class="ghost-btn" type="button">Temizle</button>
+                                    <button id="service-source-back-local" class="ghost-btn" type="button">Yerel Arşive Dön</button>
+                                </div>
+                            </div>
+                            <div class="source-note">
+                                ${isSpotify
+                                    ? `Durum: ${service.me?.display_name ? service.me.display_name + " bağlı" : "Henüz giriş yapılmadı"}`
+                                    : "Not: YouTube araması için API key gerekir. Bu ilk sürüm herkese açık arama sonuçlarını ve playlist/video gömülmesini sağlar."}
+                            </div>
+                            ${buildServiceResults(isSpotify ? "spotify" : "youtube")}
+                            ${renderIntegrationPresets(isSpotify ? "spotify" : "youtube")}
+                        </section>
+                        <section class="source-preview">
+                            <div class="source-preview-top">
+                                <div>
+                                    <h3>${previewTitle}</h3>
+                                    <p>${isSpotify ? "Spotify içeriğini uygulama kabuğunda oynatıyorsun." : "YouTube içeriğini uygulama kabuğunda oynatıyorsun."}</p>
+                                </div>
+                                <div class="source-badge">${badgeLabel}</div>
+                            </div>
+                            <div class="source-embed-shell">${embed}</div>
+                        </section>
+                    </div>
+                `;
+            }
+
+            function attachSourceWorkspaceEvents() {
+                const input = document.getElementById("service-source-input");
+                const loadBtn = document.getElementById("service-source-load");
+                const clearBtn = document.getElementById("service-source-clear");
+                const backBtn = document.getElementById("service-source-back-local");
+                const searchInput = document.getElementById("service-search-input");
+                const searchRun = document.getElementById("service-search-run");
+                const spotifyClientId = document.getElementById("service-spotify-client-id");
+                const spotifyLogin = document.getElementById("service-spotify-login");
+                const spotifyPlaylists = document.getElementById("service-spotify-playlists");
+                const youtubeApiKey = document.getElementById("service-youtube-api-key");
+                const kind = state.sourceMode === "spotify" ? "spotify" : "youtube";
+
+                input?.addEventListener("input", () => {
+                    state.integrations[kind].input = input.value;
+                    saveIntegrations();
+                });
+                searchInput?.addEventListener("input", () => {
+                    state.integrations[kind].searchQuery = searchInput.value;
+                    saveIntegrations();
+                });
+                spotifyClientId?.addEventListener("input", () => {
+                    state.integrations.spotify.clientId = spotifyClientId.value;
+                    saveIntegrations();
+                });
+                youtubeApiKey?.addEventListener("input", () => {
+                    state.integrations.youtube.apiKey = youtubeApiKey.value;
+                    saveIntegrations();
+                });
+
+                loadBtn?.addEventListener("click", () => {
+                    const raw = document.getElementById("service-source-input")?.value || "";
+                    const embedUrl = kind === "spotify" ? parseSpotifyEmbedUrl(raw) : parseYouTubeEmbedUrl(raw);
+                    if (!embedUrl) {
+                        window.alert(kind === "spotify" ? "Geçerli bir Spotify linki veya URI gir." : "Geçerli bir YouTube linki gir.");
+                        return;
+                    }
+                    state.integrations[kind].input = raw;
+                    state.integrations[kind].embedUrl = embedUrl;
+                    pushIntegrationPreset(kind, raw, embedUrl);
+                    saveIntegrations();
+                    renderSourceWorkspace();
+                });
+
+                clearBtn?.addEventListener("click", () => {
+                    state.integrations[kind].input = "";
+                    state.integrations[kind].embedUrl = "";
+                    saveIntegrations();
+                    renderSourceWorkspace();
+                });
+
+                backBtn?.addEventListener("click", () => setSourceMode("local"));
+
+                searchRun?.addEventListener("click", async () => {
+                    try {
+                        if (kind === "spotify") await searchSpotify();
+                        else await searchYouTube();
+                    } catch (error) {
+                        console.error(error);
+                        window.alert(kind === "spotify" ? "Spotify araması başarısız oldu." : "YouTube araması başarısız oldu.");
+                    }
+                });
+
+                spotifyLogin?.addEventListener("click", async () => {
+                    try {
+                        if (!state.integrations.spotify.accessToken) await startSpotifyAuth();
+                        else {
+                            await loadSpotifyMe();
+                            await loadSpotifyPlaylists();
+                        }
+                    } catch (error) {
+                        console.error(error);
+                        window.alert("Spotify girişi başlatılamadı.");
+                    }
+                });
+
+                spotifyPlaylists?.addEventListener("click", async () => {
+                    try {
+                        await loadSpotifyPlaylists();
+                    } catch (error) {
+                        console.error(error);
+                        window.alert("Spotify playlistleri çekilemedi.");
+                    }
+                });
+
+                document.querySelectorAll(`[data-source-preset="${kind}"]`).forEach((node) => {
+                    node.addEventListener("click", () => {
+                        const index = Number(node.dataset.sourcePresetIndex);
+                        const preset = state.integrations[kind].presets[index];
+                        if (!preset) return;
+                        state.integrations[kind].input = preset.label;
+                        state.integrations[kind].embedUrl = preset.embedUrl;
+                        saveIntegrations();
+                        renderSourceWorkspace();
+                    });
+                });
+
+                const resultItems = kind === "spotify"
+                    ? [...(state.integrations.spotify.playlists || []), ...(state.integrations.spotify.searchResults || [])]
+                    : [...(state.integrations.youtube.searchResults || [])];
+                document.querySelectorAll(`[data-service-result="${kind}"]`).forEach((node) => {
+                    node.addEventListener("click", () => {
+                        const index = Number(node.dataset.serviceResultIndex);
+                        const item = resultItems[index];
+                        if (!item?.embedUrl) return;
+                        state.integrations[kind].input = item.embedUrl;
+                        state.integrations[kind].embedUrl = item.embedUrl;
+                        pushIntegrationPreset(kind, item.title || item.name || item.embedUrl, item.embedUrl);
                         saveIntegrations();
                         renderSourceWorkspace();
                     });
@@ -5332,6 +5774,11 @@
             }
 
             async function init() {
+                try {
+                    await maybeHandleSpotifyCallback();
+                } catch (error) {
+                    console.error(error);
+                }
                 bindEvents();
                 initFloatingPanelInteractions();
                 applyCustomTheme();
