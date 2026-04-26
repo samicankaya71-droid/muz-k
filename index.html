@@ -157,6 +157,14 @@
             color: var(--accent);
         }
 
+        .nav-link.source-nav {
+            margin: 6px 16px 0;
+            padding: 14px 16px;
+            border-radius: 16px;
+            background: rgba(255,255,255,.035);
+            border: 1px solid rgba(255,255,255,.05);
+        }
+
         .pl-item {
             padding: 8px 55px;
             font-size: 0.85em;
@@ -241,6 +249,175 @@
             z-index: 1;
             transition: margin 0.5s ease;
             position: relative;
+        }
+
+        body.service-mode #song-body,
+        body.service-mode #select-toolbar,
+        body.service-mode #edit-btn,
+        body.service-mode #selection-mode-btn {
+            display: none !important;
+        }
+
+        #source-workspace {
+            display: none;
+        }
+
+        body.service-mode #source-workspace {
+            display: block;
+        }
+
+        .source-shell {
+            display: grid;
+            grid-template-columns: minmax(300px, 360px) minmax(0, 1fr);
+            gap: 24px;
+            align-items: start;
+        }
+
+        .source-card {
+            padding: 22px;
+            border-radius: 26px;
+            background: rgba(255,255,255,.045);
+            border: 1px solid rgba(255,255,255,.08);
+            box-shadow: 0 24px 60px rgba(0,0,0,.22);
+        }
+
+        .source-kicker {
+            margin-bottom: 8px;
+            font-size: 11px;
+            letter-spacing: .22em;
+            color: rgba(255,255,255,.54);
+        }
+
+        .source-heading {
+            margin: 0 0 10px;
+            font-size: 32px;
+            font-weight: 900;
+        }
+
+        .source-copy {
+            margin: 0 0 18px;
+            color: var(--muted);
+            line-height: 1.6;
+        }
+
+        .source-form {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .source-form-row {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .source-note {
+            margin-top: 10px;
+            color: rgba(255,255,255,.6);
+            font-size: 11px;
+            line-height: 1.6;
+        }
+
+        .source-preset-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 18px;
+        }
+
+        .source-preset {
+            padding: 12px 14px;
+            border-radius: 16px;
+            background: rgba(255,255,255,.04);
+            border: 1px solid rgba(255,255,255,.06);
+        }
+
+        .source-preset strong,
+        .source-preset span {
+            display: block;
+        }
+
+        .source-preset strong {
+            font-size: 13px;
+            margin-bottom: 5px;
+        }
+
+        .source-preset span {
+            color: var(--muted);
+            font-size: 11px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .source-preview {
+            min-height: 760px;
+            padding: 20px;
+            border-radius: 30px;
+            background:
+                radial-gradient(circle at top, rgba(255,255,255,.08), transparent 30%),
+                radial-gradient(circle at 50% 0%, rgba(0,242,255,.14), transparent 26%),
+                rgba(255,255,255,.03);
+            border: 1px solid rgba(255,255,255,.08);
+            box-shadow: 0 35px 80px rgba(0,0,0,.28);
+        }
+
+        .source-preview-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            margin-bottom: 18px;
+        }
+
+        .source-preview-top h3 {
+            margin: 0;
+            font-size: 22px;
+        }
+
+        .source-preview-top p {
+            margin: 6px 0 0;
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .source-badge {
+            padding: 10px 14px;
+            border-radius: 999px;
+            background: var(--accent-mid);
+            color: #fff;
+            font-size: 11px;
+            letter-spacing: .14em;
+            text-transform: uppercase;
+        }
+
+        .source-embed-shell {
+            position: relative;
+            overflow: hidden;
+            border-radius: 28px;
+            min-height: 620px;
+            background: rgba(0,0,0,.34);
+            border: 1px solid rgba(255,255,255,.08);
+        }
+
+        .source-embed-shell iframe {
+            width: 100%;
+            min-height: 620px;
+            border: 0;
+            display: block;
+            background: #000;
+        }
+
+        .source-empty {
+            min-height: 620px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            color: rgba(255,255,255,.56);
+            padding: 32px;
+            line-height: 1.7;
         }
 
         body.right-open #main-content {
@@ -1576,6 +1753,14 @@
                 height: 85px;
                 padding: 0 15px;
             }
+
+            .source-shell {
+                grid-template-columns: 1fr;
+            }
+
+            .source-preview {
+                min-height: 520px;
+            }
         }
     </style>
 </head>
@@ -2081,6 +2266,7 @@
                 playbackSpeed: 1,
                 sleepTimerId: null,
                 activeView: "all",
+                sourceMode: "local",
                 activePlaylist: "",
                 searchTerm: "",
                 editMode: false,
@@ -2113,13 +2299,44 @@
                     trackA: null,
                     trackB: null,
                     renderedUrl: ""
-                }
+                },
+                integrations: safeJsonParse(localStorage.getItem("u_integrations"), {
+                    spotify: { input: "", embedUrl: "", presets: [] },
+                    youtube: { input: "", embedUrl: "", presets: [] }
+                })
             };
+
+            function ensureIntegrationScaffold() {
+                const sidebar = document.getElementById("sidebar");
+                if (sidebar && !document.getElementById("source-local-nav")) {
+                    const anchor = sidebar.querySelector('[data-view="fav"]');
+                    if (anchor) {
+                        anchor.insertAdjacentHTML("afterend", `
+                            <div id="source-local-nav" class="nav-link source-nav active"><span>💿</span><span>YEREL ARŞİV</span></div>
+                            <div id="source-spotify-nav" class="nav-link source-nav"><span>🟢</span><span>SPOTIFY MODU</span></div>
+                            <div id="source-youtube-nav" class="nav-link source-nav"><span>🔴</span><span>YOUTUBE MODU</span></div>
+                        `);
+                    }
+                }
+
+                const mainContent = document.getElementById("main-content");
+                if (mainContent && !document.getElementById("source-workspace")) {
+                    const songBody = document.getElementById("song-body");
+                    if (songBody) {
+                        songBody.insertAdjacentHTML("afterend", `<div id="source-workspace"></div>`);
+                    }
+                }
+            }
+
+            ensureIntegrationScaffold();
 
             const dom = {
                 body: document.body,
                 menuToggle: document.getElementById("menu-toggle"),
                 sidebar: document.getElementById("sidebar"),
+                sourceLocalNav: document.getElementById("source-local-nav"),
+                sourceSpotifyNav: document.getElementById("source-spotify-nav"),
+                sourceYouTubeNav: document.getElementById("source-youtube-nav"),
                 sidebarPlaylists: document.getElementById("sidebar-playlists"),
                 viewTitle: document.getElementById("view-title"),
                 searchInput: document.getElementById("search-input"),
@@ -2134,6 +2351,7 @@
                 clearSelectionBtn: document.getElementById("clear-selection-btn"),
                 syncStatus: document.getElementById("sync-status"),
                 songBody: document.getElementById("song-body"),
+                sourceWorkspace: document.getElementById("source-workspace"),
                 rightPanel: document.getElementById("right-panel"),
                 rightClose: document.getElementById("right-close"),
                 rightHandle: document.getElementById("right-handle"),
@@ -2520,6 +2738,204 @@
                 if (state.currentIdx >= state.currentQueue.length) {
                     state.currentIdx = -1;
                 }
+            }
+
+            function saveIntegrations() {
+                localStorage.setItem("u_integrations", JSON.stringify(state.integrations));
+            }
+
+            function parseSpotifyEmbedUrl(input) {
+                const text = String(input || "").trim();
+                if (!text) return "";
+                const uriMatch = text.match(/^spotify:(track|album|playlist|artist|episode|show):([A-Za-z0-9]+)$/i);
+                if (uriMatch) {
+                    return `https://open.spotify.com/embed/${uriMatch[1].toLowerCase()}/${uriMatch[2]}?utm_source=generator&theme=0`;
+                }
+                try {
+                    const url = new URL(text);
+                    const match = url.pathname.match(/\/(track|album|playlist|artist|episode|show)\/([A-Za-z0-9]+)/i);
+                    if (!match) return "";
+                    return `https://open.spotify.com/embed/${match[1].toLowerCase()}/${match[2]}?utm_source=generator&theme=0`;
+                } catch {
+                    return "";
+                }
+            }
+
+            function parseYouTubeEmbedUrl(input) {
+                const text = String(input || "").trim();
+                if (!text) return "";
+                try {
+                    const url = new URL(text);
+                    const playlistId = url.searchParams.get("list");
+                    let videoId = url.searchParams.get("v");
+                    if (!videoId && (url.hostname.includes("youtu.be"))) {
+                        videoId = url.pathname.replace("/", "");
+                    }
+                    if (!videoId && url.pathname.startsWith("/shorts/")) {
+                        videoId = url.pathname.split("/")[2] || "";
+                    }
+                    if (playlistId && videoId) {
+                        return `https://www.youtube.com/embed/${videoId}?list=${playlistId}&autoplay=0&rel=0&modestbranding=1`;
+                    }
+                    if (playlistId) {
+                        return `https://www.youtube.com/embed/videoseries?list=${playlistId}&autoplay=0&rel=0&modestbranding=1`;
+                    }
+                    if (videoId) {
+                        return `https://www.youtube.com/embed/${videoId}?autoplay=0&rel=0&modestbranding=1`;
+                    }
+                    return "";
+                } catch {
+                    return "";
+                }
+            }
+
+            function pushIntegrationPreset(kind, rawInput, embedUrl) {
+                const service = state.integrations[kind];
+                if (!service || !embedUrl) return;
+                const label = rawInput.trim();
+                service.presets = [{ label, embedUrl }, ...service.presets.filter((item) => item.embedUrl !== embedUrl)].slice(0, 12);
+                saveIntegrations();
+            }
+
+            function renderIntegrationPresets(kind) {
+                const service = state.integrations[kind];
+                if (!service) return "";
+                if (!service.presets.length) {
+                    return `<div class="source-note">${kind === "spotify" ? "Spotify linki" : "YouTube linki"} yüklediğinde burada hızlı erişim kayıtları oluşacak.</div>`;
+                }
+                return `<div class="source-preset-list">${service.presets.map((item, index) => `
+                    <button class="source-preset" type="button" data-source-preset="${kind}" data-source-preset-index="${index}">
+                        <strong>${escapeAttr(kind === "spotify" ? "Spotify Kaydı" : "YouTube Kaydı")}</strong>
+                        <span>${escapeAttr(item.label)}</span>
+                    </button>
+                `).join("")}</div>`;
+            }
+
+            function buildSourceWorkspaceHtml() {
+                const mode = state.sourceMode;
+                const isSpotify = mode === "spotify";
+                const service = state.integrations[isSpotify ? "spotify" : "youtube"];
+                const previewTitle = isSpotify ? "Spotify Kaynak Alanı" : "YouTube Kaynak Alanı";
+                const previewCopy = isSpotify
+                    ? "Spotify linki veya URI gir, uygulamanın içinden embed oynatıcıyı kullan. Bu ilk sürüm gömülü beta modelidir."
+                    : "YouTube video veya playlist linki gir, uygulama içinden çalıştır. Böylece arşiv ve YouTube arasında aynı arayüzde geçiş yaparsın.";
+                const inputPlaceholder = isSpotify
+                    ? "Spotify track/album/playlist linki veya spotify:track:... URI"
+                    : "YouTube video veya playlist linki";
+                const buttonLabel = isSpotify ? "Spotify Yükle" : "YouTube Yükle";
+                const badgeLabel = isSpotify ? "Spotify Beta" : "YouTube Beta";
+                const embed = service.embedUrl
+                    ? `<iframe allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy" src="${escapeAttr(service.embedUrl)}"></iframe>`
+                    : `<div class="source-empty">${isSpotify ? "Spotify track, album veya playlist linkini girerek bu alanı doldurabilirsin." : "YouTube video ya da playlist linkini girerek bu alanı doldurabilirsin."}<br><br>Bu mod uygulamanın içinde kalır; ayrı site açılmaz.</div>`;
+
+                return `
+                    <div class="source-shell">
+                        <section class="source-card">
+                            <div class="source-kicker">${isSpotify ? "SPOTIFY INTEGRATION" : "YOUTUBE INTEGRATION"}</div>
+                            <h2 class="source-heading">${isSpotify ? "Spotify Modu" : "YouTube Modu"}</h2>
+                            <p class="source-copy">${previewCopy}</p>
+                            <div class="source-form">
+                                <input id="service-source-input" class="text-input" type="text" placeholder="${escapeAttr(inputPlaceholder)}" value="${escapeAttr(service.input || "")}">
+                                <div class="source-form-row">
+                                    <button id="service-source-load" class="panel-btn" type="button" style="width:auto; padding:0 22px;">${buttonLabel}</button>
+                                    <button id="service-source-clear" class="ghost-btn" type="button">Temizle</button>
+                                    <button id="service-source-back-local" class="ghost-btn" type="button">Yerel Arşive Dön</button>
+                                </div>
+                            </div>
+                            <div class="source-note">
+                                ${isSpotify
+                                    ? "Not: Bu ilk kurulum, Spotify hesabının tamamını kopyalamaz. Embed ve hızlı kaynak akışı sağlar. İkinci aşamada gerçek OAuth/Web Playback katmanı ekleyebiliriz."
+                                    : "Not: Bu ilk kurulum, YouTube içeriklerini uygulama içinde açar. İkinci aşamada arama, hesap playlistleri ve beğeniler için daha derin entegrasyon ekleyebiliriz."}
+                            </div>
+                            ${renderIntegrationPresets(isSpotify ? "spotify" : "youtube")}
+                        </section>
+                        <section class="source-preview">
+                            <div class="source-preview-top">
+                                <div>
+                                    <h3>${previewTitle}</h3>
+                                    <p>${isSpotify ? "Spotify içeriğini uygulama kabuğunda oynatıyorsun." : "YouTube içeriğini uygulama kabuğunda oynatıyorsun."}</p>
+                                </div>
+                                <div class="source-badge">${badgeLabel}</div>
+                            </div>
+                            <div class="source-embed-shell">${embed}</div>
+                        </section>
+                    </div>
+                `;
+            }
+
+            function attachSourceWorkspaceEvents() {
+                const input = document.getElementById("service-source-input");
+                const loadBtn = document.getElementById("service-source-load");
+                const clearBtn = document.getElementById("service-source-clear");
+                const backBtn = document.getElementById("service-source-back-local");
+                const kind = state.sourceMode === "spotify" ? "spotify" : "youtube";
+                if (input) {
+                    input.addEventListener("input", () => {
+                        state.integrations[kind].input = input.value;
+                        saveIntegrations();
+                    });
+                }
+                loadBtn?.addEventListener("click", () => {
+                    const raw = document.getElementById("service-source-input")?.value || "";
+                    const embedUrl = kind === "spotify" ? parseSpotifyEmbedUrl(raw) : parseYouTubeEmbedUrl(raw);
+                    if (!embedUrl) {
+                        window.alert(kind === "spotify" ? "Geçerli bir Spotify linki veya URI gir." : "Geçerli bir YouTube linki gir.");
+                        return;
+                    }
+                    state.integrations[kind].input = raw;
+                    state.integrations[kind].embedUrl = embedUrl;
+                    pushIntegrationPreset(kind, raw, embedUrl);
+                    saveIntegrations();
+                    renderSourceWorkspace();
+                });
+                clearBtn?.addEventListener("click", () => {
+                    state.integrations[kind].input = "";
+                    state.integrations[kind].embedUrl = "";
+                    saveIntegrations();
+                    renderSourceWorkspace();
+                });
+                backBtn?.addEventListener("click", () => setSourceMode("local"));
+                document.querySelectorAll(`[data-source-preset="${kind}"]`).forEach((node) => {
+                    node.addEventListener("click", () => {
+                        const index = Number(node.dataset.sourcePresetIndex);
+                        const preset = state.integrations[kind].presets[index];
+                        if (!preset) return;
+                        state.integrations[kind].input = preset.label;
+                        state.integrations[kind].embedUrl = preset.embedUrl;
+                        saveIntegrations();
+                        renderSourceWorkspace();
+                    });
+                });
+            }
+
+            function renderSourceWorkspace() {
+                if (!dom.sourceWorkspace) return;
+                dom.body.classList.toggle("service-mode", state.sourceMode !== "local");
+                if (state.sourceMode === "local") {
+                    dom.sourceWorkspace.innerHTML = "";
+                    return;
+                }
+                dom.viewTitle.textContent = state.sourceMode === "spotify" ? "SPOTIFY MODU" : "YOUTUBE MODU";
+                dom.sourceWorkspace.innerHTML = buildSourceWorkspaceHtml();
+                attachSourceWorkspaceEvents();
+            }
+
+            function updateSourceNavState() {
+                dom.sourceLocalNav?.classList.toggle("active", state.sourceMode === "local");
+                dom.sourceSpotifyNav?.classList.toggle("active", state.sourceMode === "spotify");
+                dom.sourceYouTubeNav?.classList.toggle("active", state.sourceMode === "youtube");
+            }
+
+            function setSourceMode(mode) {
+                state.sourceMode = mode;
+                updateSourceNavState();
+                if (mode !== "local") {
+                    const player = getPlayer();
+                    player.pause();
+                    syncPlayButtons();
+                }
+                renderSourceWorkspace();
+                refreshQueueAndRender();
             }
 
             function clearNode(node) {
@@ -4073,8 +4489,9 @@
 
             function updateActiveNav() {
                 document.querySelectorAll(".nav-link[data-view]").forEach((node) => {
-                    node.classList.toggle("active", node.dataset.view === state.activeView);
+                    node.classList.toggle("active", state.sourceMode === "local" && node.dataset.view === state.activeView);
                 });
+                updateSourceNavState();
             }
 
             function refreshQueueAndRender() {
@@ -4417,14 +4834,18 @@
             }
 
             function showView(view) {
+                state.sourceMode = "local";
                 state.activeView = view;
                 state.activePlaylist = "";
+                updateSourceNavState();
                 refreshQueueAndRender();
             }
 
             function showPlaylist(name) {
+                state.sourceMode = "local";
                 state.activeView = "playlist";
                 state.activePlaylist = name;
+                updateSourceNavState();
                 refreshQueueAndRender();
             }
 
@@ -4703,8 +5124,14 @@
                 });
 
                 document.querySelectorAll(".nav-link[data-view]").forEach((node) => {
-                    node.addEventListener("click", () => showView(node.dataset.view));
+                    node.addEventListener("click", () => {
+                        if (state.sourceMode !== "local") setSourceMode("local");
+                        showView(node.dataset.view);
+                    });
                 });
+                dom.sourceLocalNav?.addEventListener("click", () => setSourceMode("local"));
+                dom.sourceSpotifyNav?.addEventListener("click", () => setSourceMode("spotify"));
+                dom.sourceYouTubeNav?.addEventListener("click", () => setSourceMode("youtube"));
                 document.querySelectorAll("[data-modal-target]").forEach((node) => {
                     node.addEventListener("click", () => toggleModal(node.dataset.modalTarget, true));
                 });
@@ -4915,6 +5342,8 @@
                 renderHistoryMiniList();
                 renderAnalytics();
                 renderScannerResults();
+                updateSourceNavState();
+                renderSourceWorkspace();
                 toggleShuffle();
                 toggleShuffle();
                 toggleRepeat();
