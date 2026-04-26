@@ -254,7 +254,19 @@
         body.service-mode #song-body,
         body.service-mode #select-toolbar,
         body.service-mode #edit-btn,
-        body.service-mode #selection-mode-btn {
+        body.service-mode #selection-mode-btn,
+        body.service-mode #right-panel,
+        body.service-mode #player-bar,
+        body.service-mode #sidebar-playlists,
+        body.service-mode .nav-link[data-view],
+        body.service-mode .nav-link[data-modal-target="playlist-modal"],
+        body.service-mode .nav-link[data-modal-target="editor-modal"],
+        body.service-mode .nav-link[data-modal-target="lyrics-modal"],
+        body.service-mode #open-lyrics-page-nav,
+        body.service-mode #open-history-panel-nav,
+        body.service-mode #open-analytics-panel-nav,
+        body.service-mode .nav-link[data-modal-target="scanner-modal"],
+        body.service-mode .nav-link[data-modal-target="db-modal"] {
             display: none !important;
         }
 
@@ -3374,6 +3386,7 @@
                 if (mode !== "local") {
                     const player = getPlayer();
                     player.pause();
+                    toggleRightPanel(false);
                     syncPlayButtons();
                 }
                 renderSourceWorkspace();
