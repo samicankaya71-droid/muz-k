@@ -256,9 +256,7 @@
         body.service-mode #edit-btn,
         body.service-mode #selection-mode-btn,
         body.service-mode .toolbar,
-        body.service-mode #right-panel,
         body.service-mode #player-bar,
-        body.service-mode #sidebar-playlists,
         body.service-mode .nav-link[data-view],
         body.service-mode .nav-link[data-modal-target="playlist-modal"],
         body.service-mode .nav-link[data-modal-target="editor-modal"],
@@ -268,6 +266,16 @@
         body.service-mode #open-analytics-panel-nav,
         body.service-mode .nav-link[data-modal-target="scanner-modal"],
         body.service-mode .nav-link[data-modal-target="db-modal"] {
+            display: none !important;
+        }
+
+        body.service-mode #tag-editor,
+        body.service-mode #open-lyrics-editor,
+        body.service-mode #playlist-toggles,
+        body.service-mode #quick-playlist-name,
+        body.service-mode #quick-playlist-btn,
+        body.service-mode #queue-list,
+        body.service-mode #clear-queue-btn {
             display: none !important;
         }
 
@@ -2479,6 +2487,7 @@
                         input: "",
                         embedUrl: "",
                         presets: [],
+                        currentItem: null,
                         clientId: "",
                         accessToken: "",
                         refreshToken: "",
@@ -2492,6 +2501,7 @@
                         input: "",
                         embedUrl: "",
                         presets: [],
+                        currentItem: null,
                         apiKey: "",
                         searchQuery: "",
                         searchResults: [],
@@ -3256,9 +3266,12 @@
                 if (!item?.embedUrl) return;
                 service.input = item.embedUrl;
                 service.embedUrl = item.embedUrl;
+                service.currentItem = item;
                 pushIntegrationPreset(kind, item.title || item.name || item.embedUrl, item.embedUrl);
                 saveIntegrations();
                 renderSourceWorkspace();
+                renderServiceTrackDetails();
+                toggleRightPanel(true);
             }
 
             async function loadSpotifyPlaylistTracks(playlistId) {
@@ -3562,7 +3575,13 @@
                         else await searchYouTube();
                     } catch (error) {
                         console.error(error);
-                        window.alert(kind === "spotify" ? "Spotify araması başarısız oldu." : "YouTube araması başarısız oldu.");
+                        if (kind === "spotify") {
+                            window.alert(error?.message === "SPOTIFY_LOGIN_REQUIRED" || error?.message === "SPOTIFY_TOKEN_EXPIRED"
+                                ? "Spotify araması için önce Spotify Giriş yapman gerekiyor. Spotify Developer panelinde redirect URI olarak bu sayfanın tam adresini de eklemelisin."
+                                : "Spotify araması başarısız oldu. Client ID, redirect URI ve giriş durumunu kontrol et.");
+                        } else {
+                            window.alert("YouTube araması başarısız oldu. API key aktif mi kontrol et.");
+                        }
                     }
                 });
 
@@ -3584,7 +3603,9 @@
                         await loadSpotifyPlaylists();
                     } catch (error) {
                         console.error(error);
-                        window.alert("Spotify playlistleri çekilemedi.");
+                        window.alert(error?.message === "SPOTIFY_LOGIN_REQUIRED" || error?.message === "SPOTIFY_TOKEN_EXPIRED"
+                            ? "Spotify playlistlerini çekmek için önce Spotify Giriş yapman gerekiyor. Redirect URI ayarını da doğrula."
+                            : "Spotify playlistleri çekilemedi.");
                     }
                 });
 
@@ -3625,6 +3646,7 @@
                     name: item.name,
                     title: item.name,
                     type: "PLAYLIST",
+                    art: item.images?.[0]?.url || "",
                     subtitle: `${item.owner?.display_name || "Spotify"} • ${item.tracks?.total || 0} kayıt`,
                     embedUrl: parseSpotifyEmbedUrl(item.external_urls?.spotify || "")
                 })).filter((item) => item.embedUrl);
@@ -3643,6 +3665,7 @@
                 const tracks = (data.tracks?.items || []).map((item) => ({
                     id: item.id || item.uri,
                     title: item.name,
+                    art: item.album?.images?.[0]?.url || "",
                     subtitle: `${item.artists?.map((artist) => artist.name).join(", ")}${item.album?.name ? " • " + item.album.name : ""}`,
                     type: "TRACK",
                     embedUrl: parseSpotifyEmbedUrl(item.external_urls?.spotify || item.uri || "")
@@ -3650,6 +3673,7 @@
                 const albums = (data.albums?.items || []).map((item) => ({
                     id: item.id || item.uri,
                     title: item.name,
+                    art: item.images?.[0]?.url || "",
                     subtitle: `${item.artists?.map((artist) => artist.name).join(", ") || "Spotify"}`,
                     type: "ALBUM",
                     embedUrl: parseSpotifyEmbedUrl(item.external_urls?.spotify || item.uri || "")
@@ -3657,6 +3681,7 @@
                 const playlists = (data.playlists?.items || []).map((item) => ({
                     id: item.id,
                     title: item.name,
+                    art: item.images?.[0]?.url || "",
                     subtitle: `${item.owner?.display_name || "Spotify"}${typeof item.tracks?.total === "number" ? " • " + item.tracks.total + " kayıt" : ""}`,
                     type: "PLAYLIST",
                     embedUrl: parseSpotifyEmbedUrl(item.external_urls?.spotify || "")
@@ -3691,6 +3716,7 @@
                     return {
                         id: playlistId || videoId,
                         title: item.snippet?.title || "İsimsiz",
+                        art: item.snippet?.thumbnails?.high?.url || item.snippet?.thumbnails?.medium?.url || item.snippet?.thumbnails?.default?.url || "",
                         subtitle: item.snippet?.channelTitle || "YouTube",
                         type: playlistId ? "PLAYLIST" : "VIDEO",
                         embedUrl: playlistId
@@ -3932,9 +3958,52 @@
                 });
             }
 
+            function renderServiceTrackDetails() {
+                const kind = state.sourceMode === "spotify" ? "spotify" : "youtube";
+                const service = getServiceStore(kind);
+                const item = service.currentItem || getServiceItems(kind)[0] || null;
+                const art = item?.art || "./LOGO.PNG";
+
+                dom.barTitle.textContent = item?.title || item?.name || (kind === "spotify" ? "Spotify Modu" : "YouTube Modu");
+                dom.barArtist.textContent = item?.subtitle || (kind === "spotify" ? "Spotify entegrasyonu aktif" : "YouTube entegrasyonu aktif");
+                dom.detTitle.textContent = item?.title || item?.name || "Kayıt Seçilmedi";
+                dom.detArtist.textContent = item?.subtitle || (kind === "spotify" ? "Spotify içeriği uygulama içinde çalışıyor" : "YouTube içeriği uygulama içinde çalışıyor");
+                dom.detMeta.innerHTML = `<span class="detail-album-chip">${kind === "spotify" ? "SPOTIFY" : "YOUTUBE"}</span>`;
+                dom.creditsInput.value = "";
+                dom.creditsPreview.textContent = "";
+                dom.tagEditor.classList.remove("open");
+                clearNode(dom.artistChips);
+                dom.lyricsInput.value = "";
+                state.activeLyrics = [];
+                state.activeLyricIndex = -1;
+                renderArt(dom.mainArt, art, "ARGAN");
+                clearNode(dom.miniArt);
+                dom.miniArt.appendChild(createSafeImage(art, item?.title || "Argan Mobilya"));
+                clearNode(dom.lyricsDisplay);
+                const note = document.createElement("div");
+                note.className = "lyrics-empty";
+                note.textContent = kind === "spotify"
+                    ? "Spotify tarafında resmi arama/playlist akışı açık. Şarkı sözleri Spotify API ile doğrudan gelmez."
+                    : "YouTube tarafında arama ve playlist akışı açık. Şarkı sözleri otomatik olarak YouTube’dan alınmıyor.";
+                dom.lyricsDisplay.appendChild(note);
+                renderPlaylistToggles();
+            }
+
+            async function spotifyApi(path) {
+                const token = state.integrations.spotify.accessToken;
+                if (!token) throw new Error("SPOTIFY_LOGIN_REQUIRED");
+                const res = await fetch(`https://api.spotify.com/v1/${path}`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                if (res.status === 401) throw new Error("SPOTIFY_TOKEN_EXPIRED");
+                if (!res.ok) throw new Error(`SPOTIFY_HTTP_${res.status}`);
+                return res.json();
+            }
+
             function renderSourceWorkspace() {
                 if (!dom.sourceWorkspace) return;
                 dom.body.classList.toggle("service-mode", state.sourceMode !== "local");
+                dom.body.dataset.sourceMode = state.sourceMode;
                 if (state.sourceMode === "local") {
                     dom.sourceWorkspace.innerHTML = "";
                     return;
@@ -3942,6 +4011,7 @@
                 dom.viewTitle.textContent = state.sourceMode === "spotify" ? "SPOTIFY MODU" : "YOUTUBE MODU";
                 dom.sourceWorkspace.innerHTML = buildSourceWorkspaceHtml();
                 attachSourceWorkspaceEvents();
+                renderServiceTrackDetails();
             }
 
             function updateSourceNavState() {
@@ -3956,11 +4026,13 @@
                 if (mode !== "local") {
                     const player = getPlayer();
                     player.pause();
-                    toggleRightPanel(false);
                     syncPlayButtons();
+                } else {
+                    toggleRightPanel(false);
                 }
                 renderSourceWorkspace();
                 refreshQueueAndRender();
+                if (mode !== "local") toggleRightPanel(true);
             }
 
             function clearNode(node) {
@@ -5232,6 +5304,44 @@
 
             function renderSidebarPlaylists() {
                 clearNode(dom.sidebarPlaylists);
+                if (state.sourceMode !== "local") {
+                    const kind = state.sourceMode === "spotify" ? "spotify" : "youtube";
+                    const service = getServiceStore(kind);
+                    const selected = service.selectedCollection || { type: "search", key: "" };
+                    const listItems = [
+                        { label: kind === "spotify" ? "Spotify Arama" : "YouTube Arama", type: "search", key: "" },
+                        { label: "Favoriler", type: "favorites", key: "" },
+                        ...Object.keys(service.customPlaylists || {}).map((name) => ({ label: name, type: "custom", key: name })),
+                        ...(kind === "spotify" ? (service.playlists || []) : (service.searchResults || []).filter((item) => item.type === "PLAYLIST")).map((item) => ({
+                            label: item.title || item.name || "Playlist",
+                            type: "accountPlaylist",
+                            key: item.id || item.embedUrl
+                        }))
+                    ];
+
+                    for (const entry of listItems) {
+                        const item = document.createElement("div");
+                        item.className = "pl-item";
+                        if (selected.type === entry.type && String(selected.key || "") === String(entry.key || "")) {
+                            item.classList.add("active");
+                        }
+                        item.textContent = "# " + entry.label;
+                        item.addEventListener("click", async () => {
+                            try {
+                                if (entry.type === "accountPlaylist") {
+                                    if (kind === "spotify") await loadSpotifyPlaylistTracks(entry.key);
+                                    else await loadYouTubePlaylistItems(entry.key);
+                                }
+                                setServiceSelection(kind, entry.type, entry.key, entry.label);
+                            } catch (error) {
+                                console.error(error);
+                                window.alert(kind === "spotify" ? "Spotify playlisti açılamadı. Önce Spotify Giriş yap ve redirect URI ayarını kontrol et." : "YouTube playlisti açılamadı.");
+                            }
+                        });
+                        dom.sidebarPlaylists.appendChild(item);
+                    }
+                    return;
+                }
                 for (const name of Object.keys(state.playlists)) {
                     const item = document.createElement("div");
                     item.className = "pl-item";
@@ -5526,6 +5636,11 @@
                 renderSidebarPlaylists();
                 renderSongs();
                 renderQueueList();
+
+                if (state.sourceMode !== "local") {
+                    renderServiceTrackDetails();
+                    return;
+                }
 
                 const currentSong = getCurrentSong();
                 if (currentSong) {
