@@ -4309,8 +4309,22 @@
                 const res = await fetch(`https://api.spotify.com/v1/${path}`, {
                     headers: { Authorization: `Bearer ${token}` }
                 });
-                if (res.status === 401) throw new Error("SPOTIFY_TOKEN_EXPIRED");
-                if (!res.ok) throw new Error(`SPOTIFY_HTTP_${res.status}`);
+                if (res.status === 401) {
+                    state.integrations.spotify.lastError = "Spotify oturumu geçersiz veya süresi dolmuş görünüyor (401).";
+                    saveIntegrations();
+                    if (state.sourceMode === "spotify") renderSourceWorkspace();
+                    throw new Error("SPOTIFY_TOKEN_EXPIRED");
+                }
+                if (!res.ok) {
+                    const errorText = await res.text().catch(() => "");
+                    state.integrations.spotify.lastError = `Spotify API hatası: HTTP ${res.status}${errorText ? " • " + errorText : ""}`;
+                    saveIntegrations();
+                    if (state.sourceMode === "spotify") renderSourceWorkspace();
+                    throw new Error(`SPOTIFY_HTTP_${res.status}`);
+                }
+                state.integrations.spotify.lastError = "";
+                saveIntegrations();
+                if (state.sourceMode === "spotify") renderSourceWorkspace();
                 return res.json();
             }
 
