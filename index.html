@@ -3282,7 +3282,7 @@
 
             async function loadSpotifyPlaylistTracks(playlistId) {
                 const service = getServiceStore("spotify");
-                const data = await spotifyApi(`playlists/${playlistId}/tracks?limit=50`);
+                const data = await spotifyApi(`playlists/${playlistId}/tracks?limit=20`);
                 service.loadedPlaylistItems = (data.items || []).map((row) => row.track).filter(Boolean).map((item) => ({
                     id: item.id || item.uri,
                     title: item.name,
@@ -3646,7 +3646,7 @@
 
             async function loadSpotifyPlaylists() {
                 const service = getServiceStore("spotify");
-                const data = await spotifyApi("me/playlists?limit=30");
+                const data = await spotifyApi("me/playlists?limit=10");
                 service.playlists = (data.items || []).map((item) => ({
                     id: item.id,
                     name: item.name,
@@ -3667,7 +3667,7 @@
                 const service = getServiceStore("spotify");
                 const query = (service.searchQuery || "").trim();
                 if (!query) return;
-                const data = await spotifyApi(`search?type=track,album,playlist&limit=18&q=${encodeURIComponent(query)}`);
+                const data = await spotifyApi(`search?type=track,album,playlist&limit=10&q=${encodeURIComponent(query)}`);
                 const tracks = (data.tracks?.items || []).map((item) => ({
                     id: item.id || item.uri,
                     title: item.name,
