@@ -2488,6 +2488,7 @@
                         embedUrl: "",
                         presets: [],
                         currentItem: null,
+                        lastError: "",
                         clientId: "",
                         accessToken: "",
                         refreshToken: "",
@@ -2971,6 +2972,8 @@
                     window.alert("Önce Spotify Client ID gir.");
                     return;
                 }
+                state.integrations.spotify.lastError = "";
+                saveIntegrations();
                 if (window.location.protocol === "file:") {
                     throw new Error("SPOTIFY_FILE_PROTOCOL");
                 }
@@ -3961,6 +3964,53 @@
                 });
             }
 
+            async function maybeHandleSpotifyCallback() {
+                const url = new URL(window.location.href);
+                const code = url.searchParams.get("code");
+                const callbackState = url.searchParams.get("state");
+                const storedState = localStorage.getItem("spotify_auth_state");
+                const verifier = localStorage.getItem("spotify_pkce_verifier");
+                if (!code || !verifier || !callbackState || callbackState !== storedState) return;
+                const clientId = (state.integrations.spotify.clientId || "").trim();
+                if (!clientId) {
+                    state.integrations.spotify.lastError = "Spotify callback geldi ama Client ID boş bulundu.";
+                    saveIntegrations();
+                    return;
+                }
+                const redirectUri = window.location.href.split("?")[0].split("#")[0];
+                const body = new URLSearchParams({
+                    client_id: clientId,
+                    grant_type: "authorization_code",
+                    code,
+                    redirect_uri: redirectUri,
+                    code_verifier: verifier
+                });
+                const res = await fetch("https://accounts.spotify.com/api/token", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                    body
+                });
+                if (!res.ok) {
+                    const errorText = await res.text().catch(() => "");
+                    state.integrations.spotify.lastError = `Spotify token alınamadı. HTTP ${res.status}. ${errorText || "Boş cevap."}`;
+                    saveIntegrations();
+                    throw new Error(state.integrations.spotify.lastError);
+                }
+                const data = await res.json();
+                state.integrations.spotify.accessToken = data.access_token || "";
+                state.integrations.spotify.refreshToken = data.refresh_token || "";
+                state.integrations.spotify.expiresAt = Date.now() + ((data.expires_in || 3600) * 1000);
+                state.integrations.spotify.lastError = "";
+                saveIntegrations();
+                localStorage.removeItem("spotify_pkce_verifier");
+                localStorage.removeItem("spotify_auth_state");
+                url.searchParams.delete("code");
+                url.searchParams.delete("state");
+                url.searchParams.delete("iss");
+                window.history.replaceState({}, "", url.toString());
+                await Promise.allSettled([loadSpotifyMe(), loadSpotifyPlaylists()]);
+            }
+
             function renderServiceTrackDetails() {
                 const kind = state.sourceMode === "spotify" ? "spotify" : "youtube";
                 const service = getServiceStore(kind);
@@ -3998,6 +4048,7 @@
                     input: "",
                     embedUrl: "",
                     currentItem: null,
+                    lastError: "",
                     accessToken: "",
                     refreshToken: "",
                     expiresAt: 0,
@@ -4279,6 +4330,9 @@
                             ? `${service.me.display_name} bağlı`
                             : "Client ID tek başına yetmez. Spotify Giriş ile resmi oturumu başlatman gerekir."))
                     : ((service.apiKey || "").trim() ? "YouTube araması hazır." : "Arama için YouTube Data API key ekle.");
+                const errorBlock = isSpotify && service.lastError
+                    ? `<div class="source-note" style="margin:10px 0 16px; color:#ffb3b3; border-color:rgba(255,120,120,.35);">${escapeAttr(service.lastError)}</div>`
+                    : "";
 
                 return `
                     <div class="source-app-grid">
@@ -4315,7 +4369,8 @@
                                 <button id="service-source-clear" class="ghost-btn" type="button">Temizle</button>
                             </div>
 
-                            <div class="source-note" style="margin:18px 0 16px;">${escapeAttr(collectionInfo)}</div>
+                            <div class="source-note" style="margin:18px 0 8px;">${escapeAttr(collectionInfo)}</div>
+                            ${errorBlock}
                             ${buildServiceSidebar(kind)}
                         </aside>
                         <section class="source-app-main">
