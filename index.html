@@ -3992,6 +3992,51 @@
                 renderPlaylistToggles();
             }
 
+            function resetSpotifySession() {
+                state.integrations.spotify = {
+                    ...state.integrations.spotify,
+                    input: "",
+                    embedUrl: "",
+                    currentItem: null,
+                    accessToken: "",
+                    refreshToken: "",
+                    expiresAt: 0,
+                    me: null,
+                    searchQuery: "",
+                    searchResults: [],
+                    playlists: [],
+                    favorites: [],
+                    customPlaylists: {},
+                    loadedPlaylistItems: [],
+                    selectedCollection: { type: "search", key: "", label: "Arama Sonuçları" }
+                };
+                localStorage.removeItem("spotify_pkce_verifier");
+                localStorage.removeItem("spotify_auth_state");
+                saveIntegrations();
+                renderSourceWorkspace();
+                refreshQueueAndRender();
+            }
+
+            function resetYouTubeSession() {
+                state.integrations.youtube = {
+                    ...state.integrations.youtube,
+                    input: "",
+                    embedUrl: "",
+                    currentItem: null,
+                    apiKey: "",
+                    searchQuery: "",
+                    searchResults: [],
+                    playlists: [],
+                    favorites: [],
+                    customPlaylists: {},
+                    loadedPlaylistItems: [],
+                    selectedCollection: { type: "search", key: "", label: "Arama Sonuçları" }
+                };
+                saveIntegrations();
+                renderSourceWorkspace();
+                refreshQueueAndRender();
+            }
+
             async function startSpotifyAuth() {
                 const clientId = (state.integrations.spotify.clientId || "").trim();
                 if (!clientId) {
@@ -4216,6 +4261,275 @@
                 if (res.status === 401) throw new Error("SPOTIFY_TOKEN_EXPIRED");
                 if (!res.ok) throw new Error(`SPOTIFY_HTTP_${res.status}`);
                 return res.json();
+            }
+
+            function buildSourceWorkspaceHtml() {
+                const kind = state.sourceMode === "spotify" ? "spotify" : "youtube";
+                const isSpotify = kind === "spotify";
+                const service = getServiceStore(kind);
+                const selected = service.selectedCollection || { type: "search", key: "", label: "Arama Sonuçları" };
+                const embed = service.embedUrl
+                    ? `<iframe allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy" src="${escapeAttr(service.embedUrl)}"></iframe>`
+                    : `<div class="source-empty">${isSpotify ? "Spotify'da arama yap, playlist seç veya link yükle." : "YouTube'da arama yap, playlist seç veya link yükle."}<br><br>Seçtiğin içerik bu alanda uygulamanın içinden açılır.</div>`;
+                const collectionLabel = selected.label || (selected.type === "favorites" ? "Favoriler" : "Arama Sonuçları");
+                const collectionInfo = isSpotify
+                    ? (window.location.protocol === "file:"
+                        ? "Spotify girişi file:// üzerinden çalışmaz."
+                        : (service.me?.display_name
+                            ? `${service.me.display_name} bağlı`
+                            : "Client ID tek başına yetmez. Spotify Giriş ile resmi oturumu başlatman gerekir."))
+                    : ((service.apiKey || "").trim() ? "YouTube araması hazır." : "Arama için YouTube Data API key ekle.");
+
+                return `
+                    <div class="source-app-grid">
+                        <aside class="source-app-sidebar">
+                            <div class="source-kicker">${isSpotify ? "SPOTIFY INSIDE ARGAN" : "YOUTUBE INSIDE ARGAN"}</div>
+                            <h2 class="source-heading" style="margin-bottom:10px;">${isSpotify ? "Spotify Modu" : "YouTube Modu"}</h2>
+                            <p class="source-copy" style="margin-bottom:18px;">${isSpotify ? "Spotify kütüphaneni ve aramalarını bu arayüzde yönet. Yerel arşivden tamamen ayrı çalışır." : "YouTube aramalarını, playlistlerini ve kayıtlarını bu arayüzde yönet. Yerel arşivden tamamen ayrı çalışır."}</p>
+
+                            ${isSpotify ? `
+                                <input id="service-spotify-client-id" class="text-input" type="text" placeholder="Spotify Client ID" value="${escapeAttr(service.clientId || "")}">
+                                <div class="source-form-row" style="margin-top:10px;">
+                                    <button id="service-spotify-login" class="ghost-btn" type="button">${service.me?.display_name ? "Hesabı Yenile" : "Spotify Giriş"}</button>
+                                    <button id="service-spotify-playlists" class="ghost-btn" type="button">Playlistleri Çek</button>
+                                    <button id="service-spotify-reset" class="ghost-btn" type="button">Spotify Sıfırla</button>
+                                </div>
+                            ` : `
+                                <input id="service-youtube-api-key" class="text-input" type="text" placeholder="YouTube Data API Key" value="${escapeAttr(service.apiKey || "")}">
+                                <div class="source-form-row" style="margin-top:10px;">
+                                    <button id="service-youtube-reset" class="ghost-btn" type="button">YouTube Sıfırla</button>
+                                </div>
+                            `}
+
+                            <div class="source-section-title" style="margin-top:18px;">Arama</div>
+                            <input id="service-search-input" class="text-input" type="text" placeholder="${isSpotify ? "Şarkı, albüm veya playlist ara" : "Video, şarkı veya playlist ara"}" value="${escapeAttr(service.searchQuery || "")}">
+                            <div class="source-form-row" style="margin-top:10px;">
+                                <button id="service-search-run" class="panel-btn" type="button" style="width:auto; padding:0 22px;">Ara</button>
+                                <button id="service-source-back-local" class="ghost-btn" type="button">Yerel Arşive Dön</button>
+                            </div>
+
+                            <div class="source-section-title" style="margin-top:18px;">Hızlı Aç</div>
+                            <input id="service-source-input" class="text-input" type="text" placeholder="${isSpotify ? "Spotify linki veya spotify:track URI" : "YouTube video/playlist linki"}" value="${escapeAttr(service.input || "")}">
+                            <div class="source-form-row" style="margin-top:10px;">
+                                <button id="service-source-load" class="ghost-btn" type="button">${isSpotify ? "Spotify Yükle" : "YouTube Yükle"}</button>
+                                <button id="service-source-clear" class="ghost-btn" type="button">Temizle</button>
+                            </div>
+
+                            <div class="source-note" style="margin:18px 0 16px;">${escapeAttr(collectionInfo)}</div>
+                            ${buildServiceSidebar(kind)}
+                        </aside>
+                        <section class="source-app-main">
+                            <div class="source-main-top">
+                                <div>
+                                    <h3>${escapeAttr(collectionLabel)}</h3>
+                                    <p>${getServiceItems(kind).length} kayıt • ${isSpotify ? "Spotify kütüphanesi" : "YouTube koleksiyonu"}</p>
+                                </div>
+                                <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                                    <button class="ghost-btn" type="button" data-service-nav="${kind}" data-service-nav-type="search" data-service-nav-key="">Arama Sonuçları</button>
+                                    <button class="ghost-btn" type="button" data-service-nav="${kind}" data-service-nav-type="favorites" data-service-nav-key="">Favoriler</button>
+                                    <button class="ghost-btn" type="button" data-service-create-playlist="${kind}">+ Playlist</button>
+                                </div>
+                            </div>
+                            ${buildServiceItemsList(kind)}
+                            <div class="source-preview" style="margin-top:18px;">
+                                <div class="source-preview-top">
+                                    <div>
+                                        <h3>${isSpotify ? "Şimdi Spotify Açık" : "Şimdi YouTube Açık"}</h3>
+                                        <p>Seçilen içerik uygulamanın içinde açılır. Yerel arşive karışmaz.</p>
+                                    </div>
+                                    <div class="source-badge">${isSpotify ? "SPOTIFY" : "YOUTUBE"}</div>
+                                </div>
+                                <div class="source-embed-shell">${embed}</div>
+                            </div>
+                        </section>
+                    </div>
+                `;
+            }
+
+            function attachSourceWorkspaceEvents() {
+                const kind = state.sourceMode === "spotify" ? "spotify" : "youtube";
+                const service = getServiceStore(kind);
+                const input = document.getElementById("service-source-input");
+                const loadBtn = document.getElementById("service-source-load");
+                const clearBtn = document.getElementById("service-source-clear");
+                const backBtn = document.getElementById("service-source-back-local");
+                const searchInput = document.getElementById("service-search-input");
+                const searchRun = document.getElementById("service-search-run");
+                const spotifyClientId = document.getElementById("service-spotify-client-id");
+                const spotifyLogin = document.getElementById("service-spotify-login");
+                const spotifyPlaylists = document.getElementById("service-spotify-playlists");
+                const spotifyReset = document.getElementById("service-spotify-reset");
+                const youtubeApiKey = document.getElementById("service-youtube-api-key");
+                const youtubeReset = document.getElementById("service-youtube-reset");
+
+                input?.addEventListener("input", () => {
+                    service.input = input.value;
+                    saveIntegrations();
+                });
+                searchInput?.addEventListener("input", () => {
+                    service.searchQuery = searchInput.value;
+                    saveIntegrations();
+                });
+                searchInput?.addEventListener("keydown", async (event) => {
+                    if (event.key !== "Enter") return;
+                    event.preventDefault();
+                    if (kind === "spotify") await searchSpotify();
+                    else await searchYouTube();
+                });
+                spotifyClientId?.addEventListener("input", () => {
+                    state.integrations.spotify.clientId = spotifyClientId.value;
+                    saveIntegrations();
+                });
+                youtubeApiKey?.addEventListener("input", () => {
+                    state.integrations.youtube.apiKey = youtubeApiKey.value;
+                    saveIntegrations();
+                });
+                spotifyReset?.addEventListener("click", resetSpotifySession);
+                youtubeReset?.addEventListener("click", resetYouTubeSession);
+
+                loadBtn?.addEventListener("click", () => {
+                    const raw = document.getElementById("service-source-input")?.value || "";
+                    const embedUrl = kind === "spotify" ? parseSpotifyEmbedUrl(raw) : parseYouTubeEmbedUrl(raw);
+                    if (!embedUrl) {
+                        window.alert(kind === "spotify" ? "Geçerli bir Spotify linki veya URI gir." : "Geçerli bir YouTube linki gir.");
+                        return;
+                    }
+                    service.input = raw;
+                    service.embedUrl = embedUrl;
+                    service.currentItem = {
+                        id: raw,
+                        title: raw,
+                        subtitle: kind === "spotify" ? "Spotify hızlı aç" : "YouTube hızlı aç",
+                        type: "EMBED",
+                        embedUrl
+                    };
+                    pushIntegrationPreset(kind, raw, embedUrl);
+                    saveIntegrations();
+                    renderSourceWorkspace();
+                    toggleRightPanel(true);
+                });
+
+                clearBtn?.addEventListener("click", () => {
+                    service.input = "";
+                    service.embedUrl = "";
+                    saveIntegrations();
+                    renderSourceWorkspace();
+                });
+
+                backBtn?.addEventListener("click", () => setSourceMode("local"));
+
+                searchRun?.addEventListener("click", async () => {
+                    try {
+                        if (kind === "spotify") await searchSpotify();
+                        else await searchYouTube();
+                    } catch (error) {
+                        console.error(error);
+                        if (kind === "spotify") {
+                            window.alert(error?.message === "SPOTIFY_LOGIN_REQUIRED" || error?.message === "SPOTIFY_TOKEN_EXPIRED"
+                                ? "Spotify araması için önce Spotify Giriş yapman gerekiyor."
+                                : "Spotify araması başarısız oldu. Client ID, giriş ve redirect URI ayarını kontrol et.");
+                        } else {
+                            window.alert("YouTube araması başarısız oldu.");
+                        }
+                    }
+                });
+
+                spotifyLogin?.addEventListener("click", async () => {
+                    try {
+                        const hasFreshToken = state.integrations.spotify.accessToken && Date.now() < ((state.integrations.spotify.expiresAt || 0) - 15000);
+                        if (!hasFreshToken || !state.integrations.spotify.me) {
+                            await startSpotifyAuth();
+                        } else {
+                            await loadSpotifyMe();
+                            await loadSpotifyPlaylists();
+                        }
+                    } catch (error) {
+                        console.error(error);
+                        window.alert(error?.message === "SPOTIFY_FILE_PROTOCOL"
+                            ? "Spotify resmi giriş akışı file:// adresinde çalışmıyor."
+                            : "Spotify girişi başlatılamadı. Client ID ve Redirect URI ayarını kontrol et.");
+                    }
+                });
+
+                spotifyPlaylists?.addEventListener("click", async () => {
+                    try {
+                        await loadSpotifyPlaylists();
+                    } catch (error) {
+                        console.error(error);
+                        window.alert(error?.message === "SPOTIFY_LOGIN_REQUIRED" || error?.message === "SPOTIFY_TOKEN_EXPIRED"
+                            ? "Spotify playlistlerini çekmek için önce Spotify Giriş yapman gerekiyor."
+                            : "Spotify playlistleri çekilemedi.");
+                    }
+                });
+
+                document.querySelectorAll(`[data-source-preset="${kind}"]`).forEach((node) => {
+                    node.addEventListener("click", () => {
+                        const index = Number(node.dataset.sourcePresetIndex);
+                        const preset = state.integrations[kind].presets[index];
+                        if (!preset) return;
+                        service.input = preset.label;
+                        service.embedUrl = preset.embedUrl;
+                        service.currentItem = {
+                            id: preset.embedUrl,
+                            title: preset.label,
+                            subtitle: kind === "spotify" ? "Spotify kaydı" : "YouTube kaydı",
+                            type: "EMBED",
+                            embedUrl: preset.embedUrl
+                        };
+                        saveIntegrations();
+                        renderSourceWorkspace();
+                        toggleRightPanel(true);
+                    });
+                });
+
+                document.querySelectorAll(`[data-service-nav="${kind}"]`).forEach((node) => {
+                    node.addEventListener("click", async () => {
+                        const type = node.dataset.serviceNavType || "search";
+                        const key = node.dataset.serviceNavKey || "";
+                        const label = node.textContent?.trim() || "Koleksiyon";
+                        try {
+                            if (type === "accountPlaylist") {
+                                if (kind === "spotify") await loadSpotifyPlaylistTracks(key);
+                                else await loadYouTubePlaylistItems(key);
+                            }
+                            setServiceSelection(kind, type, key, label);
+                        } catch (error) {
+                            console.error(error);
+                            window.alert(kind === "spotify" ? "Spotify playlisti açılamadı. Önce Spotify Giriş yap ve redirect URI ayarını kontrol et." : "YouTube playlisti açılamadı.");
+                        }
+                    });
+                });
+
+                document.querySelectorAll(`[data-service-create-playlist="${kind}"]`).forEach((node) => {
+                    node.addEventListener("click", () => createServicePlaylist(kind));
+                });
+
+                document.querySelectorAll(`[data-service-open="${kind}"]`).forEach((node) => {
+                    node.addEventListener("click", () => {
+                        const index = Number(node.dataset.serviceItemIndex);
+                        const item = getServiceItems(kind)[index];
+                        if (!item) return;
+                        openServiceItem(kind, item);
+                    });
+                });
+
+                document.querySelectorAll(`[data-service-fav="${kind}"]`).forEach((node) => {
+                    node.addEventListener("click", () => {
+                        const index = Number(node.dataset.serviceItemIndex);
+                        const item = getServiceItems(kind)[index];
+                        if (!item) return;
+                        toggleServiceFavorite(kind, item);
+                    });
+                });
+
+                document.querySelectorAll(`[data-service-add-playlist="${kind}"]`).forEach((node) => {
+                    node.addEventListener("click", () => {
+                        const index = Number(node.dataset.serviceItemIndex);
+                        const item = getServiceItems(kind)[index];
+                        if (!item) return;
+                        addToServicePlaylist(kind, item);
+                    });
+                });
             }
 
             function renderSourceWorkspace() {
