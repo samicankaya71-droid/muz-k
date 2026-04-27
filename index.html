@@ -4088,6 +4088,10 @@
                 refreshQueueAndRender();
             }
 
+            function waitMs(ms) {
+                return new Promise((resolve) => setTimeout(resolve, ms));
+            }
+
             async function startSpotifyAuth() {
                 const clientId = (state.integrations.spotify.clientId || "").trim();
                 if (!clientId) {
@@ -4303,7 +4307,7 @@
                 });
             }
 
-            async function spotifyApi(path) {
+            async function spotifyApi(path, attempt = 0) {
                 const token = state.integrations.spotify.accessToken;
                 if (!token) throw new Error("SPOTIFY_LOGIN_REQUIRED");
                 const res = await fetch(`https://api.spotify.com/v1/${path}`, {
@@ -4317,6 +4321,10 @@
                 }
                 if (!res.ok) {
                     const errorText = await res.text().catch(() => "");
+                    if ((res.status === 502 || res.status === 503 || res.status === 504) && attempt < 2) {
+                        await waitMs(700 * (attempt + 1));
+                        return spotifyApi(path, attempt + 1);
+                    }
                     state.integrations.spotify.lastError = `Spotify API hatası: HTTP ${res.status}${errorText ? " • " + errorText : ""}`;
                     saveIntegrations();
                     if (state.sourceMode === "spotify") renderSourceWorkspace();
