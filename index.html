@@ -602,6 +602,67 @@
             white-space: nowrap;
         }
 
+        .collection-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 18px;
+        }
+
+        .collection-card {
+            padding: 18px;
+            border-radius: 22px;
+            background: rgba(255,255,255,.05);
+            border: 1px solid rgba(255,255,255,.08);
+            color: #fff;
+            text-align: left;
+            box-shadow: 0 20px 40px rgba(0,0,0,.18);
+        }
+
+        .collection-art {
+            width: 100%;
+            aspect-ratio: 1;
+            border-radius: 18px;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255,255,255,.06);
+            margin-bottom: 14px;
+            font-size: 40px;
+            font-weight: 900;
+        }
+
+        .collection-art img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .collection-card strong,
+        .collection-card span,
+        .collection-card small {
+            display: block;
+        }
+
+        .collection-card span {
+            margin-top: 6px;
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .collection-card small {
+            margin-top: 10px;
+            color: rgba(255,255,255,.7);
+            line-height: 1.4;
+        }
+
+        .song-added-info {
+            margin-top: 4px;
+            color: rgba(255,255,255,.52);
+            font-size: 10px;
+            letter-spacing: .04em;
+        }
+
         body.right-open #main-content {
             margin-right: var(--right-panel-width);
         }
@@ -1962,6 +2023,8 @@
         </div>
         <div class="nav-link active" data-view="all"><span>🏠</span><span>HAVUZ</span></div>
         <div class="nav-link" data-view="fav"><span>💖</span><span>FAVORİLER</span></div>
+        <div class="nav-link" data-view="artists"><span>🎤</span><span>SANATÇILAR</span></div>
+        <div class="nav-link" data-view="albums"><span>💿</span><span>ALBÜMLER</span></div>
         <div class="nav-link" data-modal-target="playlist-modal"><span>📂</span><span>LİSTELER</span></div>
         <div class="nav-link" data-modal-target="editor-modal"><span>🎚</span><span>DÜZENLEYİCİ</span></div>
         <div class="nav-link" data-modal-target="lyrics-modal"><span>📝</span><span>ŞARKI SÖZLERİ</span></div>
@@ -1970,20 +2033,8 @@
         <div id="open-analytics-panel-nav" class="nav-link"><span>📊</span><span>ANALİZ</span></div>
         <div class="nav-link" data-modal-target="scanner-modal"><span>🧪</span><span>LİNK TARAMA</span></div>
         <div id="sidebar-playlists"></div>
-        <div class="sidebar-widget">
-            <div class="sidebar-widget-title">SON DİNLENENLER</div>
-            <div id="history-mini-list" class="sidebar-mini-list"></div>
-        </div>
-        <div class="sidebar-widget">
-            <div class="sidebar-widget-title">DİNLEME HAFIZASI</div>
-            <select id="sidebar-analytics-range" class="analytics-range">
-                <option value="1">Son 24 Saat</option>
-                <option value="7">Son 1 Hafta</option>
-                <option value="30">Son 1 Ay</option>
-            </select>
-            <div id="sidebar-analytics-summary"></div>
-        </div>
         <div style="margin-top:auto; padding-bottom:30px;">
+            <div id="source-local-nav-anchor"></div>
             <div class="nav-link" data-modal-target="db-modal">👤 ARŞİV</div>
             <div class="nav-link" data-modal-target="settings-modal">⚙️ AYARLAR</div>
         </div>
@@ -2448,6 +2499,8 @@
                 playbackSpeed: 1,
                 sleepTimerId: null,
                 activeView: "all",
+                activeArtistKey: "",
+                activeAlbumKey: "",
                 sourceMode: "local",
                 activePlaylist: "",
                 searchTerm: "",
@@ -2515,9 +2568,9 @@
             function ensureIntegrationScaffold() {
                 const sidebar = document.getElementById("sidebar");
                 if (sidebar && !document.getElementById("source-local-nav")) {
-                    const anchor = sidebar.querySelector('[data-view="fav"]');
+                    const anchor = document.getElementById("source-local-nav-anchor");
                     if (anchor) {
-                        anchor.insertAdjacentHTML("afterend", `
+                        anchor.insertAdjacentHTML("beforebegin", `
                             <div id="source-local-nav" class="nav-link source-nav active"><span>💿</span><span>YEREL ARŞİV</span></div>
                             <div id="source-spotify-nav" class="nav-link source-nav"><span>🟢</span><span>SPOTIFY MODU</span></div>
                             <div id="source-youtube-nav" class="nav-link source-nav"><span>🔴</span><span>YOUTUBE MODU</span></div>
@@ -2844,6 +2897,83 @@
                     .filter(Boolean);
             }
 
+            function normalizeKey(value, fallback = "bilinmeyen") {
+                return String(value || fallback).trim().toLowerCase();
+            }
+
+            function getSongDuration(song) {
+                return Number(state.songMeta?.[song.url]?.durationSeconds || 0);
+            }
+
+            function getSongAddedLabel(song) {
+                if (song.addedAt) return song.addedAt;
+                return `Eklenme sırası #${(song.addedIndex || 0) + 1}`;
+            }
+
+            function getCollectionDurationLabel(songs) {
+                const totalSeconds = songs.reduce((sum, song) => sum + getSongDuration(song), 0);
+                return totalSeconds > 0 ? formatTime(totalSeconds) : "Süre öğreniliyor";
+            }
+
+            function sortSongsByLatest(list) {
+                return [...list].sort((a, b) => (b.addedIndex || 0) - (a.addedIndex || 0));
+            }
+
+            function buildArtistCollections() {
+                const map = new Map();
+                state.allSongs.forEach((song) => {
+                    const credits = state.songMeta?.[song.url]?.credits || "";
+                    const tags = [...credits.matchAll(/#(\w+)/g)].map((match) => match[1].toLowerCase());
+                    const key = tags[0] || normalizeKey(song.artist, "bilinmeyen-sanatçı");
+                    const db = state.artistDB[key] || {};
+                    const current = map.get(key) || {
+                        key,
+                        name: db.name || song.artist || key,
+                        img: db.img || "",
+                        bio: db.bio || `${db.name || song.artist || "Bu sanatçı"} için arşivde ${0} kayıt bulunuyor.`,
+                        songs: []
+                    };
+                    current.songs.push(song);
+                    if (!current.img && db.img) current.img = db.img;
+                    map.set(key, current);
+                });
+                return [...map.values()]
+                    .map((artist) => ({
+                        ...artist,
+                        songs: sortSongsByLatest(artist.songs),
+                        bio: artist.bio.replace("0 kayıt", `${artist.songs.length} kayıt`),
+                        totalDuration: getCollectionDurationLabel(artist.songs)
+                    }))
+                    .sort((a, b) => b.songs.length - a.songs.length);
+            }
+
+            function buildAlbumCollections() {
+                const map = new Map();
+                state.allSongs.forEach((song) => {
+                    if (!song.album) return;
+                    const key = normalizeKey(song.album, song.album);
+                    const meta = state.songMeta?.[song.url] || DEFAULT_META;
+                    const current = map.get(key) || {
+                        key,
+                        name: song.album,
+                        art: meta.art || "",
+                        artist: song.artist || "",
+                        songs: []
+                    };
+                    current.songs.push(song);
+                    if (!current.art && meta.art) current.art = meta.art;
+                    if (!current.artist && song.artist) current.artist = song.artist;
+                    map.set(key, current);
+                });
+                return [...map.values()]
+                    .map((album) => ({
+                        ...album,
+                        songs: sortSongsByLatest(album.songs),
+                        totalDuration: getCollectionDurationLabel(album.songs)
+                    }))
+                    .sort((a, b) => b.songs.length - a.songs.length);
+            }
+
             async function fetchSheetSongs() {
                 const res = await fetch(buildSheetUrl(), { cache: "no-store" });
                 if (!res.ok) {
@@ -2851,12 +2981,15 @@
                 }
                 const text = await res.text();
                 const json = JSON.parse(text.substring(47).slice(0, -2));
-                return (json.table.rows || [])
-                    .map((row) => ({
+                const rows = json.table.rows || [];
+                return rows
+                    .map((row, index) => ({
                         title: String(row.c?.[0]?.v || "İsimsiz").trim(),
                         artist: String(row.c?.[1]?.v || "Bilinmeyen Sanatçı").trim(),
                         url: normalizeSongUrl(row.c?.[2]?.v || row.c?.[2]?.f || ""),
-                        album: String(row.c?.[3]?.v || row.c?.[3]?.f || "").trim()
+                        album: String(row.c?.[3]?.v || row.c?.[3]?.f || "").trim(),
+                        addedAt: String(row.c?.[4]?.v || row.c?.[4]?.f || "").trim(),
+                        addedIndex: index
                     }))
                     .filter((song) => /^https?:\/\//i.test(song.url));
             }
@@ -2914,9 +3047,23 @@
                 if (state.activeView === "fav") {
                     baseQueue = state.allSongs.filter((song) => state.favorites.includes(song.url));
                     dom.viewTitle.textContent = "FAVORİLER";
+                } else if (state.activeView === "artist-detail" && state.activeArtistKey) {
+                    const artist = buildArtistCollections().find((entry) => entry.key === state.activeArtistKey);
+                    baseQueue = artist ? artist.songs : [];
+                    dom.viewTitle.textContent = artist?.name || "SANATÇI";
+                } else if (state.activeView === "album-detail" && state.activeAlbumKey) {
+                    const album = buildAlbumCollections().find((entry) => entry.key === state.activeAlbumKey);
+                    baseQueue = album ? album.songs : [];
+                    dom.viewTitle.textContent = album?.name || "ALBÜM";
                 } else if (state.activeView === "playlist" && state.activePlaylist) {
                     baseQueue = getSongsForPlaylist(state.activePlaylist);
                     dom.viewTitle.textContent = state.activePlaylist;
+                } else if (state.activeView === "artists") {
+                    baseQueue = [];
+                    dom.viewTitle.textContent = "SANATÇILAR";
+                } else if (state.activeView === "albums") {
+                    baseQueue = [];
+                    dom.viewTitle.textContent = "ALBÜMLER";
                 } else {
                     baseQueue = [...state.allSongs];
                     dom.viewTitle.textContent = "HAVUZ";
@@ -5081,6 +5228,7 @@
             }
 
             function renderHistoryMiniList() {
+                if (!dom.historyMiniList) return;
                 clearNode(dom.historyMiniList);
                 const entries = state.playHistory.slice(0, 6);
                 if (!entries.length) {
@@ -5116,21 +5264,23 @@
                 const stats = buildAnalytics(days);
                 const hours = (stats.totalSeconds / 3600).toFixed(1);
 
-                dom.sidebarAnalyticsSummary.innerHTML = "";
-                const summary = document.createElement("div");
-                summary.className = "analytics-total";
-                summary.textContent = `${days === 1 ? "24 saatte" : days + " günde"} toplam ${hours} saat • ${stats.sessionsCount} oturum`;
-                dom.sidebarAnalyticsSummary.appendChild(summary);
+                if (dom.sidebarAnalyticsSummary) {
+                    dom.sidebarAnalyticsSummary.innerHTML = "";
+                    const summary = document.createElement("div");
+                    summary.className = "analytics-total";
+                    summary.textContent = `${days === 1 ? "24 saatte" : days + " günde"} toplam ${hours} saat • ${stats.sessionsCount} oturum`;
+                    dom.sidebarAnalyticsSummary.appendChild(summary);
 
-                const topArtists = document.createElement("div");
-                topArtists.className = "sidebar-mini-list";
-                (stats.artists.slice(0, 3)).forEach((artist) => {
-                    const item = document.createElement("div");
-                    item.className = "sidebar-mini-item";
-                    item.innerHTML = `<strong>${artist.name}</strong><span>${formatTime(artist.seconds)} dinlendi</span>`;
-                    topArtists.appendChild(item);
-                });
-                dom.sidebarAnalyticsSummary.appendChild(topArtists);
+                    const topArtists = document.createElement("div");
+                    topArtists.className = "sidebar-mini-list";
+                    (stats.artists.slice(0, 3)).forEach((artist) => {
+                        const item = document.createElement("div");
+                        item.className = "sidebar-mini-item";
+                        item.innerHTML = `<strong>${artist.name}</strong><span>${formatTime(artist.seconds)} dinlendi</span>`;
+                        topArtists.appendChild(item);
+                    });
+                    dom.sidebarAnalyticsSummary.appendChild(topArtists);
+                }
 
                 if (dom.analyticsRange) dom.analyticsRange.value = String(days);
                 if (dom.analyticsPanelRange) dom.analyticsPanelRange.value = String(days);
@@ -6017,6 +6167,76 @@
             function renderSongs() {
                 clearNode(dom.songBody);
 
+                if (state.activeView === "artists") {
+                    const artists = buildArtistCollections().filter((artist) => {
+                        const term = state.searchTerm.trim().toLowerCase();
+                        if (!term) return true;
+                        return artist.name.toLowerCase().includes(term);
+                    });
+                    if (!artists.length) {
+                        const empty = document.createElement("div");
+                        empty.className = "empty-state";
+                        empty.textContent = "Sanatçı bulunamadı.";
+                        dom.songBody.appendChild(empty);
+                        return;
+                    }
+                    const grid = document.createElement("div");
+                    grid.className = "collection-grid";
+                    artists.forEach((artist) => {
+                        const card = document.createElement("button");
+                        card.type = "button";
+                        card.className = "collection-card";
+                        card.innerHTML = `
+                            <div class="collection-art">${artist.img ? `<img src="${escapeAttr(artist.img)}" alt="${escapeAttr(artist.name)}">` : `<span>${escapeAttr(artist.name.slice(0, 1))}</span>`}</div>
+                            <strong>${escapeAttr(artist.name)}</strong>
+                            <span>${artist.songs.length} şarkı • ${escapeAttr(artist.totalDuration)}</span>
+                            <small>${escapeAttr(artist.bio)}</small>
+                        `;
+                        card.addEventListener("click", () => {
+                            state.activeArtistKey = artist.key;
+                            showView("artist-detail");
+                        });
+                        grid.appendChild(card);
+                    });
+                    dom.songBody.appendChild(grid);
+                    return;
+                }
+
+                if (state.activeView === "albums") {
+                    const albums = buildAlbumCollections().filter((album) => {
+                        const term = state.searchTerm.trim().toLowerCase();
+                        if (!term) return true;
+                        return album.name.toLowerCase().includes(term) || album.artist.toLowerCase().includes(term);
+                    });
+                    if (!albums.length) {
+                        const empty = document.createElement("div");
+                        empty.className = "empty-state";
+                        empty.textContent = "Albüm bulunamadı.";
+                        dom.songBody.appendChild(empty);
+                        return;
+                    }
+                    const grid = document.createElement("div");
+                    grid.className = "collection-grid";
+                    albums.forEach((album) => {
+                        const card = document.createElement("button");
+                        card.type = "button";
+                        card.className = "collection-card";
+                        card.innerHTML = `
+                            <div class="collection-art">${album.art ? `<img src="${escapeAttr(album.art)}" alt="${escapeAttr(album.name)}">` : `<span>💿</span>`}</div>
+                            <strong>${escapeAttr(album.name)}</strong>
+                            <span>${album.songs.length} şarkı • ${escapeAttr(album.totalDuration)}</span>
+                            <small>${escapeAttr(album.artist || "Albüm arşivi")}</small>
+                        `;
+                        card.addEventListener("click", () => {
+                            state.activeAlbumKey = album.key;
+                            showView("album-detail");
+                        });
+                        grid.appendChild(card);
+                    });
+                    dom.songBody.appendChild(grid);
+                    return;
+                }
+
                 if (!state.currentQueue.length) {
                     const empty = document.createElement("div");
                     empty.className = "empty-state";
@@ -6069,9 +6289,15 @@
                         metaWrap.appendChild(albumBadge);
                     }
 
+                    const addedInfo = document.createElement("div");
+                    addedInfo.className = "song-added-info";
+                    addedInfo.textContent = getSongAddedLabel(song);
+                    metaWrap.appendChild(addedInfo);
+
                     const artist = document.createElement("div");
                     artist.className = "song-artist";
-                    artist.textContent = song.artist;
+                    const durationLabel = getSongDuration(song) > 0 ? ` • ${formatTime(getSongDuration(song))}` : "";
+                    artist.textContent = `${song.artist}${durationLabel}`;
 
                     const fav = document.createElement("div");
                     fav.className = "song-fav-btn";
@@ -6149,12 +6375,13 @@
                     return;
                 }
                 for (const name of Object.keys(state.playlists)) {
+                    const songs = getSongsForPlaylist(name);
                     const item = document.createElement("div");
                     item.className = "pl-item";
                     if (state.activeView === "playlist" && state.activePlaylist === name) {
                         item.classList.add("active");
                     }
-                    item.textContent = "# " + name;
+                    item.textContent = `# ${name} • ${songs.length} şarkı • ${getCollectionDurationLabel(songs)}`;
                     item.addEventListener("click", () => showPlaylist(name));
                     dom.sidebarPlaylists.appendChild(item);
                 }
@@ -6172,6 +6399,7 @@
                 }
 
                 for (const name of names) {
+                    const songs = getSongsForPlaylist(name);
                     const card = document.createElement("div");
                     card.className = "playlist-card";
 
@@ -6184,7 +6412,7 @@
                     count.className = "muted";
                     count.style.fontSize = "12px";
                     count.style.marginBottom = "16px";
-                    count.textContent = (state.playlists[name] || []).length + " kayıt";
+                    count.textContent = `${songs.length} kayıt • ${getCollectionDurationLabel(songs)}`;
 
                     const openBtn = document.createElement("button");
                     openBtn.type = "button";
@@ -6784,6 +7012,8 @@
                 state.sourceMode = "local";
                 state.activeView = view;
                 state.activePlaylist = "";
+                if (view !== "artist-detail") state.activeArtistKey = view === "artists" ? state.activeArtistKey : "";
+                if (view !== "album-detail") state.activeAlbumKey = view === "albums" ? state.activeAlbumKey : "";
                 updateSourceNavState();
                 refreshQueueAndRender();
             }
@@ -7021,6 +7251,14 @@
                 });
                 player.addEventListener("loadedmetadata", () => {
                     if (player !== getPlayer()) return;
+                    const song = getCurrentSong();
+                    if (song && Number.isFinite(player.duration) && player.duration > 0) {
+                        state.songMeta[song.url] = {
+                            ...(state.songMeta[song.url] || DEFAULT_META),
+                            durationSeconds: Math.round(player.duration)
+                        };
+                        saveLocalState();
+                    }
                     updateProgressUI();
                 });
                 player.addEventListener("play", () => {
