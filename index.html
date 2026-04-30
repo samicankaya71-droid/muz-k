@@ -2842,6 +2842,10 @@
                 return "https://docs.google.com/spreadsheets/d/" + SHEET_ID + "/gviz/tq?tqx=out:json";
             }
 
+            function buildSheetCsvUrl() {
+                return "https://docs.google.com/spreadsheets/d/" + SHEET_ID + "/export?format=csv";
+            }
+
             function extractDriveFileId(url) {
                 if (!url) return "";
 
@@ -2889,6 +2893,65 @@
                 } catch {
                     return text;
                 }
+            }
+
+            function parseCsv(text) {
+                const rows = [];
+                let row = [];
+                let value = "";
+                let inQuotes = false;
+
+                for (let i = 0; i < text.length; i += 1) {
+                    const char = text[i];
+                    const next = text[i + 1];
+
+                    if (char === "\"") {
+                        if (inQuotes && next === "\"") {
+                            value += "\"";
+                            i += 1;
+                        } else {
+                            inQuotes = !inQuotes;
+                        }
+                        continue;
+                    }
+
+                    if (char === "," && !inQuotes) {
+                        row.push(value);
+                        value = "";
+                        continue;
+                    }
+
+                    if ((char === "\n" || char === "\r") && !inQuotes) {
+                        if (char === "\r" && next === "\n") i += 1;
+                        row.push(value);
+                        rows.push(row);
+                        row = [];
+                        value = "";
+                        continue;
+                    }
+
+                    value += char;
+                }
+
+                if (value.length || row.length) {
+                    row.push(value);
+                    rows.push(row);
+                }
+
+                return rows;
+            }
+
+            function mapSheetRowsToSongs(rows) {
+                return rows
+                    .map((row, index) => ({
+                        title: String(row[0] || "İsimsiz").trim(),
+                        artist: String(row[1] || "Bilinmeyen Sanatçı").trim(),
+                        url: normalizeSongUrl(row[2] || ""),
+                        album: String(row[3] || "").trim(),
+                        addedAt: String(row[4] || "").trim(),
+                        addedIndex: index
+                    }))
+                    .filter((song) => /^https?:\/\//i.test(song.url));
             }
 
             function getSongsForPlaylist(name) {
@@ -2975,23 +3038,38 @@
             }
 
             async function fetchSheetSongs() {
-                const res = await fetch(buildSheetUrl(), { cache: "no-store" });
-                if (!res.ok) {
-                    throw new Error("Tablo okunamadı.");
+                const [gvizResult, csvResult] = await Promise.allSettled([
+                    fetch(buildSheetUrl(), { cache: "no-store" }).then(async (res) => {
+                        if (!res.ok) throw new Error("GVIZ okunamadı");
+                        const text = await res.text();
+                        const json = JSON.parse(text.substring(47).slice(0, -2));
+                        const rows = (json.table.rows || []).map((row) => [
+                            row.c?.[0]?.v || "",
+                            row.c?.[1]?.v || "",
+                            row.c?.[2]?.v || row.c?.[2]?.f || "",
+                            row.c?.[3]?.v || row.c?.[3]?.f || "",
+                            row.c?.[4]?.v || row.c?.[4]?.f || ""
+                        ]);
+                        return mapSheetRowsToSongs(rows);
+                    }),
+                    fetch(buildSheetCsvUrl(), { cache: "no-store" }).then(async (res) => {
+                        if (!res.ok) throw new Error("CSV okunamadı");
+                        const text = await res.text();
+                        const rows = parseCsv(text);
+                        const bodyRows = rows.length > 1 ? rows.slice(1) : rows;
+                        return mapSheetRowsToSongs(bodyRows);
+                    })
+                ]);
+
+                const gvizSongs = gvizResult.status === "fulfilled" ? gvizResult.value : [];
+                const csvSongs = csvResult.status === "fulfilled" ? csvResult.value : [];
+                const songs = csvSongs.length > gvizSongs.length ? csvSongs : gvizSongs;
+
+                if (!songs.length) {
+                    throw new Error("Sheet'ten hiç şarkı okunamadı.");
                 }
-                const text = await res.text();
-                const json = JSON.parse(text.substring(47).slice(0, -2));
-                const rows = json.table.rows || [];
-                return rows
-                    .map((row, index) => ({
-                        title: String(row.c?.[0]?.v || "İsimsiz").trim(),
-                        artist: String(row.c?.[1]?.v || "Bilinmeyen Sanatçı").trim(),
-                        url: normalizeSongUrl(row.c?.[2]?.v || row.c?.[2]?.f || ""),
-                        album: String(row.c?.[3]?.v || row.c?.[3]?.f || "").trim(),
-                        addedAt: String(row.c?.[4]?.v || row.c?.[4]?.f || "").trim(),
-                        addedIndex: index
-                    }))
-                    .filter((song) => /^https?:\/\//i.test(song.url));
+
+                return songs;
             }
 
             async function syncFromCloud() {
