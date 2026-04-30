@@ -7284,7 +7284,6 @@
 
             function maybeStartCrossfade() {
                 const player = getPlayer();
-                if (window.innerWidth <= 768) return;
                 if (state.crossfadeSeconds <= 0 || state.repeatMode === 2) return;
                 if (!player.duration || player.paused) return;
                 const remaining = player.duration - player.currentTime;
