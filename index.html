@@ -2510,6 +2510,7 @@
                 lastSyncOk: null,
                 pendingRestoreTime: null,
                 preloadedNextUrl: "",
+                isPageHidden: false,
                 activeLyrics: [],
                 activeLyricIndex: -1,
                 analyticsRangeDays: 1,
@@ -5097,35 +5098,50 @@
                 [dom.lyricsViewPanel, dom.historyPanel, dom.analyticsPanel].forEach((panel) => {
                     if (!panel || panel.dataset.draggableReady === "1") return;
                     panel.dataset.draggableReady = "1";
-                    panel.addEventListener("mousedown", () => {
-                        state.panelZCounter = (state.panelZCounter || 6200) + 1;
-                        panel.style.zIndex = String(state.panelZCounter);
-                    });
                     const header = panel.querySelector(".floating-header");
                     if (!header) return;
 
-                    header.addEventListener("mousedown", (event) => {
+                    panel.addEventListener("pointerdown", (event) => {
+                        state.panelZCounter = (state.panelZCounter || 6200) + 1;
+                        panel.style.zIndex = String(state.panelZCounter);
+                    });
+
+                    panel.addEventListener("pointerdown", (event) => {
                         if (event.target.closest("button, input, select, textarea")) return;
+                        const rect = panel.getBoundingClientRect();
+                        const edge = 28;
+                        const isResizeZone = event.clientX >= rect.right - edge && event.clientY >= rect.bottom - edge;
+                        const canDrag = header.contains(event.target);
+                        if (!isResizeZone && !canDrag) return;
+
+                        event.preventDefault();
                         const startX = event.clientX;
                         const startY = event.clientY;
-                        const rect = panel.getBoundingClientRect();
                         const originLeft = rect.left;
                         const originTop = rect.top;
+                        const originWidth = rect.width;
+                        const originHeight = rect.height;
                         panel.style.right = "auto";
                         panel.style.bottom = "auto";
+                        panel.setPointerCapture?.(event.pointerId);
 
                         const onMove = (moveEvent) => {
-                            panel.style.left = originLeft + (moveEvent.clientX - startX) + "px";
-                            panel.style.top = originTop + (moveEvent.clientY - startY) + "px";
+                            if (isResizeZone) {
+                                panel.style.width = Math.max(320, originWidth + (moveEvent.clientX - startX)) + "px";
+                                panel.style.height = Math.max(260, originHeight + (moveEvent.clientY - startY)) + "px";
+                            } else {
+                                panel.style.left = originLeft + (moveEvent.clientX - startX) + "px";
+                                panel.style.top = originTop + (moveEvent.clientY - startY) + "px";
+                            }
                         };
 
                         const onUp = () => {
-                            window.removeEventListener("mousemove", onMove);
-                            window.removeEventListener("mouseup", onUp);
+                            window.removeEventListener("pointermove", onMove);
+                            window.removeEventListener("pointerup", onUp);
                         };
 
-                        window.addEventListener("mousemove", onMove);
-                        window.addEventListener("mouseup", onUp);
+                        window.addEventListener("pointermove", onMove);
+                        window.addEventListener("pointerup", onUp);
                     });
                 });
             }
@@ -7212,7 +7228,7 @@
             }
 
             function primeNextTrack() {
-                if (state.isCrossfading || state.crossfadeSeconds <= 0) return;
+                if (state.isCrossfading || state.crossfadeSeconds <= 0 || state.isPageHidden) return;
                 const nextIndex = pickNextIndex();
                 if (nextIndex < 0) return;
                 const nextSong = state.currentQueue[nextIndex];
@@ -7228,7 +7244,7 @@
             }
 
             async function crossFadeToNext() {
-                if (state.isCrossfading || state.crossfadeSeconds <= 0 || state.currentQueue.length < 1) return;
+                if (state.isCrossfading || state.crossfadeSeconds <= 0 || state.currentQueue.length < 1 || state.isPageHidden) return;
 
                 const oldPlayer = getPlayer();
                 const nextIndex = pickNextIndex();
@@ -7242,10 +7258,11 @@
 
                 const newPlayer = getPlayer();
                 const targetVolume = Number(dom.volumeRange.value);
+                oldPlayer.volume = targetVolume;
+                newPlayer.volume = 0;
                 newPlayer.src = nextSong.url;
                 newPlayer.currentTime = 0;
                 newPlayer.playbackRate = state.playbackSpeed;
-                newPlayer.volume = 0;
 
                 try {
                     await newPlayer.play();
@@ -7266,8 +7283,10 @@
                 const fadeInterval = setInterval(() => {
                     currentStep += 1;
                     const ratio = Math.min(1, currentStep / totalSteps);
-                    newPlayer.volume = targetVolume * ratio;
-                    oldPlayer.volume = targetVolume * (1 - ratio);
+                    const fadeInRatio = Math.max(0, (ratio - 0.12) / 0.88);
+                    const fadeOutRatio = Math.max(0, 1 - (ratio * 1.15));
+                    newPlayer.volume = targetVolume * fadeInRatio;
+                    oldPlayer.volume = targetVolume * fadeOutRatio;
 
                     if (ratio >= 1) {
                         clearInterval(fadeInterval);
@@ -7284,13 +7303,13 @@
 
             function maybeStartCrossfade() {
                 const player = getPlayer();
-                if (state.crossfadeSeconds <= 0 || state.repeatMode === 2) return;
+                if (state.crossfadeSeconds <= 0 || state.repeatMode === 2 || state.isPageHidden) return;
                 if (!player.duration || player.paused) return;
                 const remaining = player.duration - player.currentTime;
                 if (remaining <= state.crossfadeSeconds + 8) {
                     primeNextTrack();
                 }
-                if (remaining <= state.crossfadeSeconds + 0.05) {
+                if (remaining <= state.crossfadeSeconds) {
                     crossFadeToNext();
                 }
             }
@@ -7565,6 +7584,22 @@
 
                 window.addEventListener("beforeunload", () => {
                     closeListenSession(getPlayer());
+                });
+
+                document.addEventListener("visibilitychange", () => {
+                    state.isPageHidden = document.hidden;
+                    if (document.hidden) {
+                        state.preloadedNextUrl = "";
+                        const inactive = getInactivePlayer();
+                        inactive.pause();
+                        inactive.removeAttribute("src");
+                        inactive.load();
+                    } else {
+                        const player = getPlayer();
+                        if (!player.paused) {
+                            primeNextTrack();
+                        }
+                    }
                 });
 
                 window.addEventListener("keydown", (event) => {
