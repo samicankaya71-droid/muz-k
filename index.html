@@ -7705,350 +7705,244 @@
 
             
 
-            /* === ARGAN AUDIO SUITE PLAYBACK FIX - ChatGPT Patch === */
-            (function installArganPlaybackFix() {
-                if (window.__ARGAN_AUDIO_SUITE_PLAYBACK_FIX__) return;
-                window.__ARGAN_AUDIO_SUITE_PLAYBACK_FIX__ = true;
+            /* === YOUTUBE / SPOTIFY RIGHT PANEL PLAYER PATCH - ChatGPT === */
+            (function installServiceRightPanelPlayer() {
+                if (window.__ARGAN_SERVICE_RIGHT_PANEL_PLAYER__) return;
+                window.__ARGAN_SERVICE_RIGHT_PANEL_PLAYER__ = true;
 
-                state.playbackQueue = Array.isArray(state.playbackQueue) ? state.playbackQueue : [];
-                state.playbackIdx = Number.isInteger(state.playbackIdx) ? state.playbackIdx : -1;
-
-                const originalDocumentAddEventListener = document.addEventListener.bind(document);
-                document.addEventListener = function patchedDocumentAddEventListener(type, listener, options) {
-                    if (
-                        type === "visibilitychange" &&
-                        typeof listener === "function" &&
-                        String(listener).includes('removeAttribute("src")')
-                    ) {
-                        return originalDocumentAddEventListener(type, function fixedVisibilityHandler() {
-                            state.isPageHidden = document.hidden;
-                            saveLastSession();
-                            if (!document.hidden) {
-                                const player = getPlayer();
-                                if (!player.paused) primeNextTrack();
-                                syncPlayButtons();
-                            }
-                        }, options);
-                    }
-                    return originalDocumentAddEventListener(type, listener, options);
-                };
-
-                function isUserPlaybackAction(origin) {
-                    return origin instanceof Event || origin === true;
-                }
-
-                function getPlaybackQueue() {
-                    if (!Array.isArray(state.playbackQueue)) state.playbackQueue = [];
-                    if (!state.playbackQueue.length) {
-                        if (Array.isArray(state.currentQueue) && state.currentQueue.length) {
-                            state.playbackQueue = state.currentQueue.slice();
-                        } else if (Array.isArray(state.allSongs) && state.allSongs.length) {
-                            state.playbackQueue = state.allSongs.slice();
-                        }
-                    }
-                    return state.playbackQueue;
-                }
-
-                function syncVisibleIndexWithPlaybackSong(song) {
-                    if (!song || !Array.isArray(state.currentQueue)) {
-                        state.currentIdx = -1;
-                        return;
-                    }
-                    state.currentIdx = state.currentQueue.findIndex((item) => item.url === song.url);
-                }
-
-                getCurrentSong = function patchedGetCurrentSong() {
-                    const queue = getPlaybackQueue();
-                    if (state.playbackIdx >= 0 && state.playbackIdx < queue.length) {
-                        return queue[state.playbackIdx] || null;
-                    }
-                    if (state.currentIdx >= 0 && state.currentIdx < state.currentQueue.length) {
-                        return state.currentQueue[state.currentIdx] || null;
-                    }
-                    return null;
-                };
-
-                function setupMediaSession(song) {
-                    if (!("mediaSession" in navigator) || !song) return;
-                    try {
-                        navigator.mediaSession.metadata = new MediaMetadata({
-                            title: song.title || "Şarkı",
-                            artist: song.artist || "Argan Mobilya",
-                            album: song.album || ""
-                        });
-                        navigator.mediaSession.setActionHandler("previoustrack", () => manualPrev(true));
-                        navigator.mediaSession.setActionHandler("nexttrack", () => manualNext(true));
-                        navigator.mediaSession.setActionHandler("play", () => {
-                            const player = getPlayer();
-                            player.play().catch((error) => console.error(error));
-                            syncPlayButtons();
-                        });
-                        navigator.mediaSession.setActionHandler("pause", () => {
-                            getPlayer().pause();
-                            syncPlayButtons();
-                        });
-                    } catch (error) {
-                        console.error("Media Session kurulamadı", error);
-                    }
-                }
-
-                function loadPlaybackSong(song, manual = true, options = {}) {
-                    if (!song || !song.url) return;
-
-                    closeListenSession(getPlayer());
-
-                    const current = getPlayer();
-                    const other = getInactivePlayer();
-                    const targetVolume = Number(dom.volumeRange.value);
-
-                    try {
-                        other.pause();
-                        other.currentTime = 0;
-                        other.volume = targetVolume;
-                    } catch {
-                        // pasif player reset hataları kritik değil
+                const style = document.createElement("style");
+                style.textContent = `
+                    body.service-mode {
+                        --right-panel-width: 520px;
                     }
 
-                    state.isCrossfading = false;
-                    state.preloadedNextUrl = "";
+                    .service-right-player {
+                        margin-top: 18px;
+                        padding: 14px;
+                        border-radius: 22px;
+                        background: rgba(255,255,255,.055);
+                        border: 1px solid rgba(255,255,255,.08);
+                        box-shadow: 0 18px 45px rgba(0,0,0,.24);
+                    }
 
-                    const shouldLoadSource = !current.currentSrc || !current.src || current.currentSrc !== song.url;
-                    if (manual || shouldLoadSource) {
-                        current.src = song.url;
-                        current.currentTime = 0;
-                        current.playbackRate = state.playbackSpeed;
-                        current.volume = targetVolume;
-                        try { current.load(); } catch {}
+                    .service-right-player-title {
+                        display: flex;
+                        align-items: center;
+                        justify-content: space-between;
+                        gap: 10px;
+                        margin-bottom: 12px;
+                    }
 
-                        if (state.pendingRestoreTime && state.pendingRestoreTime.url === song.url) {
-                            current.addEventListener("loadedmetadata", () => {
-                                current.currentTime = Math.min(
-                                    state.pendingRestoreTime.time,
-                                    current.duration || state.pendingRestoreTime.time
-                                );
-                                state.pendingRestoreTime = null;
-                                saveLastSession();
-                            }, { once: true });
+                    .service-right-player-title strong {
+                        font-size: 12px;
+                        letter-spacing: .12em;
+                    }
+
+                    .service-right-player-title span {
+                        padding: 6px 9px;
+                        border-radius: 999px;
+                        background: var(--accent-mid);
+                        color: #fff;
+                        font-size: 10px;
+                        font-weight: 900;
+                    }
+
+                    .service-right-embed {
+                        position: relative;
+                        width: 100%;
+                        aspect-ratio: 16 / 9;
+                        overflow: hidden;
+                        border-radius: 18px;
+                        background: #000;
+                        border: 1px solid rgba(255,255,255,.08);
+                    }
+
+                    .service-right-embed iframe {
+                        width: 100%;
+                        height: 100%;
+                        border: 0;
+                        display: block;
+                        background: #000;
+                    }
+
+                    .service-right-actions {
+                        display: flex;
+                        gap: 8px;
+                        margin-top: 12px;
+                    }
+
+                    .service-right-actions button {
+                        flex: 1;
+                    }
+
+                    .service-right-note {
+                        margin-top: 10px;
+                        color: rgba(255,255,255,.58);
+                        font-size: 11px;
+                        line-height: 1.5;
+                    }
+
+                    @media (max-width: 768px) {
+                        body.service-mode {
+                            --right-panel-width: 100%;
                         }
 
-                        if (manual) {
-                            current.play().catch((error) => {
-                                console.error("Çalma başlatılamadı", error);
-                                setSyncStatus("▶ devam için dokun");
-                                syncPlayButtons();
-                            });
+                        body.service-mode #right-panel {
+                            width: 100%;
+                            padding: 22px;
                         }
                     }
+                `;
+                document.head.appendChild(style);
 
-                    syncVisibleIndexWithPlaybackSong(song);
-                    renderSongs();
-                    renderTrackDetails(song);
-                    renderQueueList();
-                    saveLastSession();
-
-                    if (options.openPanel ?? (manual && !document.hidden)) {
-                        toggleRightPanel(true);
-                    }
-
-                    syncLyricsWindow(true);
-                    setupMediaSession(song);
+                function serviceEscapeAttr(value) {
+                    return String(value ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
                 }
 
-                function playPlaybackIndex(index, manual = true, options = {}) {
-                    const queue = getPlaybackQueue();
-                    if (!queue.length || index < 0 || index >= queue.length) return;
-                    state.playbackIdx = index;
-                    const song = queue[state.playbackIdx];
-                    syncVisibleIndexWithPlaybackSong(song);
-                    loadPlaybackSong(song, manual, options);
+                function safeGetServiceStore(kind) {
+                    if (typeof getServiceStore === "function") return getServiceStore(kind);
+                    const service = state.integrations?.[kind] || {};
+                    if (!service.favorites) service.favorites = [];
+                    if (!service.customPlaylists) service.customPlaylists = {};
+                    if (!service.selectedCollection) service.selectedCollection = { type: "search", key: "", label: "Arama Sonuçları" };
+                    return service;
                 }
 
-                playIndex = function patchedPlayIndex(index, manual = true, options = {}) {
-                    const sourceQueue = state.currentQueue.length ? state.currentQueue : state.allSongs;
-                    if (!sourceQueue.length || index < 0 || index >= sourceQueue.length) {
-                        const queue = getPlaybackQueue();
-                        if (state.playbackIdx >= 0 && state.playbackIdx < queue.length) {
-                            playPlaybackIndex(state.playbackIdx, manual, options);
-                        }
-                        return;
-                    }
-                    state.playbackQueue = sourceQueue.slice();
-                    state.playbackIdx = index;
-                    const song = state.playbackQueue[state.playbackIdx];
-                    syncVisibleIndexWithPlaybackSong(song);
-                    loadPlaybackSong(song, manual, options);
-                };
+                function safeGetServiceItems(kind) {
+                    if (typeof getServiceItems === "function") return getServiceItems(kind);
+                    const service = safeGetServiceStore(kind);
+                    return service.searchResults || [];
+                }
 
-                playSongByUrl = function patchedPlaySongByUrl(url, manual = true, removeFromManualQueue = false) {
-                    const song = findSongByUrl(url);
-                    if (!song) return;
-                    const allIndex = state.allSongs.findIndex((item) => item.url === song.url);
-                    state.playbackQueue = state.allSongs.slice();
-                    state.playbackIdx = allIndex >= 0 ? allIndex : 0;
-                    if (removeFromManualQueue) {
-                        state.manualQueue = state.manualQueue.filter((item) => item !== url);
-                        saveLocalState();
-                    }
-                    loadPlaybackSong(song, manual, { openPanel: manual && !document.hidden });
-                };
+                function ensureServiceRightPlayerBox() {
+                    if (!dom.rightPanel) return null;
 
-                pickNextIndex = function patchedPickNextIndex() {
-                    const queue = getPlaybackQueue();
-                    if (state.manualQueue.length) return -2;
-                    if (!queue.length) return -1;
-                    if (state.repeatMode === 2) return state.playbackIdx >= 0 ? state.playbackIdx : 0;
-                    if (state.isShuffle) return Math.floor(Math.random() * queue.length);
-                    const current = state.playbackIdx >= 0 ? state.playbackIdx : 0;
-                    return (current + 1) % queue.length;
-                };
+                    let box = document.getElementById("service-right-player");
+                    if (box) return box;
 
-                manualNext = function patchedManualNext(origin) {
-                    const userInitiated = isUserPlaybackAction(origin);
+                    box = document.createElement("div");
+                    box.id = "service-right-player";
+                    box.className = "service-right-player";
+                    box.innerHTML = `
+                        <div class="service-right-player-title">
+                            <strong>SERVİS OYNATICI</strong>
+                            <span id="service-right-badge">YOUTUBE</span>
+                        </div>
+                        <div id="service-right-embed" class="service-right-embed"></div>
+                        <div class="service-right-actions">
+                            <button id="service-right-refresh" class="mini-btn" type="button">Yenile</button>
+                            <button id="service-right-open-main" class="mini-btn" type="button">Ana Alanda Göster</button>
+                        </div>
+                        <div id="service-right-note" class="service-right-note">
+                            YouTube/Spotify içeriği burada açılır. Oynatma YouTube/Spotify iframe kontrolü üzerinden yapılır.
+                        </div>
+                    `;
 
-                    if (state.manualQueue.length) {
-                        const nextUrl = state.manualQueue.shift();
-                        saveLocalState();
-                        const queuedSong = findSongByUrl(nextUrl);
-                        if (!queuedSong) {
-                            renderQueueList();
-                            manualNext(origin);
-                            return;
-                        }
-                        const allIndex = state.allSongs.findIndex((song) => song.url === queuedSong.url);
-                        state.playbackQueue = state.allSongs.slice();
-                        state.playbackIdx = allIndex >= 0 ? allIndex : 0;
-                        loadPlaybackSong(queuedSong, true, { openPanel: userInitiated });
-                        return;
-                    }
-
-                    const next = pickNextIndex();
-                    if (next >= 0) playPlaybackIndex(next, true, { openPanel: userInitiated });
-                };
-
-                manualPrev = function patchedManualPrev(origin) {
-                    const userInitiated = isUserPlaybackAction(origin);
-                    const queue = getPlaybackQueue();
-                    if (!queue.length) return;
-                    if (state.isShuffle) {
-                        playPlaybackIndex(Math.floor(Math.random() * queue.length), true, { openPanel: userInitiated });
-                        return;
-                    }
-                    const current = state.playbackIdx >= 0 ? state.playbackIdx : 0;
-                    playPlaybackIndex((current - 1 + queue.length) % queue.length, true, { openPanel: userInitiated });
-                };
-
-                togglePlay = function patchedTogglePlay() {
-                    const player = getPlayer();
-                    if (!getCurrentSong()) {
-                        const fallbackQueue = state.currentQueue.length ? state.currentQueue : state.allSongs;
-                        if (fallbackQueue.length) {
-                            state.playbackQueue = fallbackQueue.slice();
-                            state.playbackIdx = Math.max(0, state.currentIdx);
-                            playPlaybackIndex(state.playbackIdx, true, { openPanel: true });
-                        }
-                        return;
-                    }
-                    if (!player.src) {
-                        playPlaybackIndex(Math.max(0, state.playbackIdx), true, { openPanel: true });
-                        return;
-                    }
-                    if (player.paused) {
-                        player.play().catch((error) => {
-                            console.error("Çalma devam ettirilemedi", error);
-                            setSyncStatus("▶ devam için dokun");
-                        });
+                    const metaBlock = dom.detMeta?.closest(".detail-center");
+                    if (metaBlock && metaBlock.parentNode) {
+                        metaBlock.insertAdjacentElement("afterend", box);
                     } else {
-                        player.pause();
+                        dom.rightPanel.appendChild(box);
                     }
-                    syncPlayButtons();
-                };
 
-                primeNextTrack = function patchedPrimeNextTrack() {
-                    if (state.isCrossfading || state.crossfadeSeconds <= 0) return;
-                    const nextIndex = pickNextIndex();
-                    if (nextIndex < 0) return;
-                    const queue = getPlaybackQueue();
-                    const nextSong = queue[nextIndex];
-                    if (!nextSong || !nextSong.url) return;
-                    const inactive = getInactivePlayer();
-                    if (state.preloadedNextUrl === nextSong.url && inactive.src) return;
-                    state.preloadedNextUrl = nextSong.url;
-                    inactive.preload = "auto";
-                    inactive.src = nextSong.url;
-                    try { inactive.load(); } catch {}
-                };
+                    document.getElementById("service-right-refresh")?.addEventListener("click", () => {
+                        renderServiceRightPlayer();
+                    });
 
-                crossFadeToNext = async function patchedCrossFadeToNext() {
-                    if (state.isCrossfading || state.crossfadeSeconds <= 0) return;
-                    const queue = getPlaybackQueue();
-                    if (!queue.length) return;
-                    const nextIndex = pickNextIndex();
-                    if (nextIndex < 0) return;
-                    const nextSong = queue[nextIndex];
-                    if (!nextSong || !nextSong.url) return;
+                    document.getElementById("service-right-open-main")?.addEventListener("click", () => {
+                        if (typeof renderSourceWorkspace === "function") renderSourceWorkspace();
+                    });
 
-                    const oldPlayer = getPlayer();
-                    state.isCrossfading = true;
-                    state.activePlayerKey = state.activePlayerKey === "a" ? "b" : "a";
-                    state.playbackIdx = nextIndex;
-                    syncVisibleIndexWithPlaybackSong(nextSong);
+                    return box;
+                }
 
-                    const newPlayer = getPlayer();
-                    const targetVolume = Number(dom.volumeRange.value);
-                    oldPlayer.volume = targetVolume;
-                    newPlayer.volume = 0;
-                    newPlayer.src = nextSong.url;
-                    newPlayer.currentTime = 0;
-                    newPlayer.playbackRate = state.playbackSpeed;
+                function renderServiceRightPlayer() {
+                    const box = ensureServiceRightPlayerBox();
+                    if (!box) return;
 
-                    try {
-                        await newPlayer.play();
-                    } catch (error) {
-                        state.activePlayerKey = state.activePlayerKey === "a" ? "b" : "a";
-                        state.isCrossfading = false;
-                        console.error("Crossfade başlatılamadı", error);
+                    const kind = state.sourceMode === "spotify" ? "spotify" : "youtube";
+                    const service = safeGetServiceStore(kind);
+                    const item = service.currentItem || safeGetServiceItems(kind)[0] || null;
+                    const embedUrl = item?.embedUrl || service.embedUrl || "";
+
+                    const badge = document.getElementById("service-right-badge");
+                    const embed = document.getElementById("service-right-embed");
+                    const note = document.getElementById("service-right-note");
+
+                    if (badge) badge.textContent = kind === "spotify" ? "SPOTIFY" : "YOUTUBE";
+
+                    if (!embedUrl) {
+                        embed.innerHTML = `
+                            <div style="
+                                min-height:180px;
+                                display:flex;
+                                align-items:center;
+                                justify-content:center;
+                                text-align:center;
+                                padding:20px;
+                                color:rgba(255,255,255,.58);
+                            ">
+                                Henüz servis içeriği seçilmedi.
+                            </div>
+                        `;
+                        if (note) note.textContent = "YouTube aramasından bir kayıt aç veya direkt link yükle.";
                         return;
                     }
 
-                    renderSongs();
-                    renderTrackDetails(nextSong);
-                    renderQueueList();
-                    setupMediaSession(nextSong);
+                    embed.innerHTML = `
+                        <iframe
+                            allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+                            allowfullscreen
+                            loading="lazy"
+                            src="${serviceEscapeAttr(embedUrl)}">
+                        </iframe>
+                    `;
 
-                    let currentStep = 0;
-                    const totalSteps = Math.max(1, Math.floor(state.crossfadeSeconds * 20));
-                    const intervalMs = (state.crossfadeSeconds * 1000) / totalSteps;
-                    const fadeInterval = setInterval(() => {
-                        currentStep += 1;
-                        const ratio = Math.min(1, currentStep / totalSteps);
-                        const fadeInRatio = Math.max(0, (ratio - 0.12) / 0.88);
-                        const fadeOutRatio = Math.max(0, 1 - (ratio * 1.15));
-                        newPlayer.volume = targetVolume * fadeInRatio;
-                        oldPlayer.volume = targetVolume * fadeOutRatio;
-                        if (ratio >= 1) {
-                            clearInterval(fadeInterval);
-                            oldPlayer.pause();
-                            oldPlayer.currentTime = 0;
-                            oldPlayer.volume = targetVolume;
-                            newPlayer.volume = targetVolume;
-                            state.isCrossfading = false;
-                            updateProgressUI();
-                            syncPlayButtons();
-                            saveLastSession();
+                    if (note) {
+                        note.textContent = item?.title
+                            ? `${item.title} sağ panelde açıldı. Oynatmak için iframe içindeki play düğmesini kullan.`
+                            : "Seçilen servis içeriği sağ panelde açıldı.";
+                    }
+                }
+
+                if (typeof renderServiceTrackDetails === "function") {
+                    const originalRenderServiceTrackDetails = renderServiceTrackDetails;
+                    renderServiceTrackDetails = function patchedRenderServiceTrackDetails() {
+                        originalRenderServiceTrackDetails.apply(this, arguments);
+                        if (state.sourceMode !== "local") {
+                            renderServiceRightPlayer();
+                        } else {
+                            const box = document.getElementById("service-right-player");
+                            if (box) box.remove();
                         }
-                    }, intervalMs);
-                };
+                    };
+                }
 
-                maybeStartCrossfade = function patchedMaybeStartCrossfade() {
-                    const player = getPlayer();
-                    if (state.crossfadeSeconds <= 0 || state.repeatMode === 2) return;
-                    if (!player.duration || player.paused) return;
-                    const remaining = player.duration - player.currentTime;
-                    if (remaining <= state.crossfadeSeconds + 8) primeNextTrack();
-                    if (!document.hidden && remaining <= state.crossfadeSeconds) crossFadeToNext();
-                };
+                if (typeof openServiceItem === "function") {
+                    const originalOpenServiceItem = openServiceItem;
+                    openServiceItem = function patchedOpenServiceItem(kind, item) {
+                        originalOpenServiceItem.apply(this, arguments);
+                        renderServiceRightPlayer();
+                        if (typeof toggleRightPanel === "function") toggleRightPanel(true);
+                    };
+                }
+
+                if (typeof setSourceMode === "function") {
+                    const originalSetSourceMode = setSourceMode;
+                    setSourceMode = function patchedSetSourceMode(mode) {
+                        originalSetSourceMode.apply(this, arguments);
+                        if (mode !== "local") {
+                            ensureServiceRightPlayerBox();
+                            renderServiceRightPlayer();
+                            if (typeof toggleRightPanel === "function") toggleRightPanel(true);
+                        } else {
+                            const box = document.getElementById("service-right-player");
+                            if (box) box.remove();
+                        }
+                    };
+                }
             })();
-            /* === END ARGAN AUDIO SUITE PLAYBACK FIX === */
+            /* === END YOUTUBE / SPOTIFY RIGHT PANEL PLAYER PATCH === */
 
   init();
         })();
