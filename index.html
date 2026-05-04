@@ -3,7 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#050505">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>Argan Mobilya Audio Suite</title>
+    <link rel="manifest" href="./manifest.webmanifest">
+    <link rel="apple-touch-icon" href="./logo.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link id="main-font-link" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;900&display=swap" rel="stylesheet">
@@ -2787,7 +2792,8 @@
             let sortableInstance = null;
 
             function safeJsonParse(raw, fallback) {
-                if (!raw) return fallback;
+                if (raw === null || raw === undefined || raw === "") return fallback;
+                if (typeof raw !== "string") return raw ?? fallback;
                 try {
                     const parsed = JSON.parse(raw);
                     return parsed ?? fallback;
@@ -2810,6 +2816,10 @@
 
             function getCurrentSong() {
                 return state.currentQueue[state.currentIdx] || null;
+            }
+
+            function isMobileRuntime() {
+                return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth <= 768;
             }
 
             function saveLocalState() {
@@ -4340,6 +4350,7 @@
                     : "YouTube tarafında arama ve playlist akışı açık. Şarkı sözleri otomatik olarak YouTube’dan alınmıyor.";
                 dom.lyricsDisplay.appendChild(note);
                 renderPlaylistToggles();
+                updateMediaSession(item || null);
             }
 
             function resetSpotifySession() {
@@ -6793,6 +6804,7 @@
                     renderPlaylistToggles();
                     syncLyricsEditorPlayer();
                     syncLyricsWindow(true);
+                    updateMediaSession(null);
                     return;
                 }
 
@@ -6822,6 +6834,7 @@
                 applyTheme(meta.art);
                 syncLyricsEditorPlayer();
                 syncLyricsWindow(true);
+                updateMediaSession(song);
             }
 
             function updateActiveNav() {
@@ -6896,11 +6909,17 @@
             function scheduleBackgroundHandoff() {
                 const player = getPlayer();
                 clearBackgroundHandoff();
-                if (!document.hidden || !player || player.paused || !player.duration || state.crossfadeSeconds <= 0) return;
+                if (!document.hidden || !player || player.paused || !player.duration) return;
 
-                const fireInMs = Math.max(250, (player.duration - player.currentTime - state.crossfadeSeconds - 0.35) * 1000);
+                const mobileHidden = isMobileRuntime();
+                const fireInMs = mobileHidden
+                    ? Math.max(250, (player.duration - player.currentTime + 0.15) * 1000)
+                    : Math.max(250, (player.duration - player.currentTime - state.crossfadeSeconds - 0.35) * 1000);
                 state.backgroundHandoffTimer = setTimeout(() => {
-                    if (!getPlayer().paused) {
+                    const active = getPlayer();
+                    if (mobileHidden && (active.ended || (active.duration && active.duration - active.currentTime <= 0.35))) {
+                        manualNext();
+                    } else if (!active.paused) {
                         maybeStartCrossfade();
                         scheduleBackgroundHandoff();
                     }
@@ -7308,6 +7327,92 @@
                 return `${String(min).padStart(2, "0")}:${String(sec).padStart(2, "0")}.${String(centi).padStart(2, "0")}`;
             }
 
+            function buildMediaArtwork(src) {
+                const imageUrl = src && /^https?:\/\//i.test(src) ? src : LOGO_SRC;
+                return [
+                    { src: imageUrl, sizes: "96x96", type: "image/png" },
+                    { src: imageUrl, sizes: "192x192", type: "image/png" },
+                    { src: imageUrl, sizes: "512x512", type: "image/png" }
+                ];
+            }
+
+            function initMediaSessionActions() {
+                if (!("mediaSession" in navigator)) return;
+
+                const setHandler = (action, handler) => {
+                    try {
+                        navigator.mediaSession.setActionHandler(action, handler);
+                    } catch {
+                        // Some mobile browsers expose Media Session but not every action.
+                    }
+                };
+
+                setHandler("play", () => playPlayerSafely(getPlayer()));
+                setHandler("pause", () => getPlayer().pause());
+                setHandler("previoustrack", manualPrev);
+                setHandler("nexttrack", manualNext);
+                setHandler("seekbackward", (details) => skipTime(-(details.seekOffset || 10)));
+                setHandler("seekforward", (details) => skipTime(details.seekOffset || 10));
+                setHandler("seekto", (details) => {
+                    const player = getPlayer();
+                    if (!Number.isFinite(details.seekTime) || !player.duration) return;
+                    player.currentTime = Math.min(player.duration, Math.max(0, details.seekTime));
+                    updateProgressUI();
+                });
+                setHandler("stop", () => {
+                    getPlayer().pause();
+                    saveLastSession();
+                });
+            }
+
+            function updateMediaSession(item = getCurrentSong()) {
+                if (!("mediaSession" in navigator)) return;
+
+                const serviceMode = state.sourceMode !== "local";
+                const meta = !serviceMode && item?.url ? (state.songMeta[item.url] || DEFAULT_META) : DEFAULT_META;
+                const title = item?.title || item?.name || "Argan Mobilya Audio Suite";
+                const artist = item?.artist || item?.subtitle || "Argan Mobilya";
+                const album = item?.album || (serviceMode ? (state.sourceMode === "spotify" ? "Spotify" : "YouTube") : "Audio Suite");
+                const art = item?.art || meta.art || LOGO_SRC;
+
+                try {
+                    navigator.mediaSession.metadata = new MediaMetadata({
+                        title,
+                        artist,
+                        album,
+                        artwork: buildMediaArtwork(art)
+                    });
+                    navigator.mediaSession.playbackState = getPlayer().paused ? "paused" : "playing";
+                    updateMediaPositionState();
+                } catch (error) {
+                    console.error(error);
+                }
+            }
+
+            function updateMediaPositionState() {
+                if (!("mediaSession" in navigator) || typeof navigator.mediaSession.setPositionState !== "function") return;
+                const player = getPlayer();
+                const duration = player.duration || 0;
+                if (!Number.isFinite(duration) || duration <= 0) return;
+                try {
+                    navigator.mediaSession.setPositionState({
+                        duration,
+                        playbackRate: state.playbackSpeed,
+                        position: Math.min(duration, Math.max(0, player.currentTime || 0))
+                    });
+                    navigator.mediaSession.playbackState = player.paused ? "paused" : "playing";
+                } catch {
+                    // Position state can reject when metadata is not fully ready.
+                }
+            }
+
+            function registerServiceWorker() {
+                if (!("serviceWorker" in navigator) || window.location.protocol === "file:") return;
+                navigator.serviceWorker.register("./service-worker.js").catch((error) => {
+                    console.error(error);
+                });
+            }
+
             function updateProgressUI() {
                 const player = getPlayer();
                 const duration = player.duration || 0;
@@ -7323,6 +7428,7 @@
                 updateLyricsPlayback(current);
                 syncLyricsEditorPlayer();
                 syncLyricsWindow(false);
+                updateMediaPositionState();
                 saveLastSession();
             }
 
@@ -7331,6 +7437,9 @@
                 document.querySelectorAll("[data-play-toggle]").forEach((button) => {
                     button.textContent = player.paused ? "▶" : "⏸";
                 });
+                if ("mediaSession" in navigator) {
+                    navigator.mediaSession.playbackState = player.paused ? "paused" : "playing";
+                }
             }
 
             function syncPlayButtons() {
@@ -7340,6 +7449,9 @@
                 });
                 if (dom.lyricsEditorPlay) dom.lyricsEditorPlay.textContent = player.paused ? "▶" : "⏸";
                 if (dom.lyricsViewPlay) dom.lyricsViewPlay.textContent = player.paused ? "▶" : "⏸";
+                if ("mediaSession" in navigator) {
+                    navigator.mediaSession.playbackState = player.paused ? "paused" : "playing";
+                }
             }
 
             function handlePlaybackError(player) {
@@ -7457,6 +7569,7 @@
                 const player = getPlayer();
                 if (state.crossfadeSeconds <= 0 || state.repeatMode === 2) return;
                 if (!player.duration || player.paused) return;
+                if (document.hidden && isMobileRuntime()) return;
                 const remaining = player.duration - player.currentTime;
                 if (remaining <= state.crossfadeSeconds + 8) {
                     primeNextTrack();
@@ -7542,6 +7655,7 @@
             }
 
             function bindEvents() {
+                initMediaSessionActions();
                 dom.menuToggle.addEventListener("click", toggleLeftMenu);
                 dom.rightClose.addEventListener("click", () => toggleRightPanel(false));
                 dom.rightHandle.addEventListener("click", () => toggleRightPanel(false));
@@ -7681,6 +7795,7 @@
 
                 dom.manualSyncBtn.addEventListener("click", async () => {
                     await syncFromCloud();
+                    await syncToCloud();
                     refreshQueueAndRender();
                 });
                 dom.crossfadeRange.addEventListener("input", (event) => updateCrossfade(event.target.value));
@@ -7785,11 +7900,16 @@
                     }
                 });
 
-                bindAudio(dom.pa);
-                bindAudio(dom.pb);
+                [dom.pa, dom.pb].forEach((player) => {
+                    player.autoplay = true;
+                    player.playsInline = true;
+                    player.setAttribute("playsinline", "");
+                    bindAudio(player);
+                });
             }
 
             async function init() {
+                registerServiceWorker();
                 try {
                     await maybeHandleSpotifyCallback();
                 } catch (error) {
