@@ -2868,6 +2868,59 @@
                 return result;
             }
 
+            function stableStringify(value) {
+                if (Array.isArray(value)) {
+                    return "[" + value.map((item) => stableStringify(item)).join(",") + "]";
+                }
+                if (value && typeof value === "object") {
+                    return "{" + Object.keys(value).sort().map((key) => JSON.stringify(key) + ":" + stableStringify(value[key])).join(",") + "}";
+                }
+                return JSON.stringify(value);
+            }
+
+            function buildCloudPayload() {
+                return {
+                    u_f: JSON.stringify(state.favorites),
+                    u_pl: JSON.stringify(state.playlists),
+                    u_db: JSON.stringify(state.artistDB),
+                    u_m: JSON.stringify(state.songMeta),
+                    u_theme: JSON.stringify(state.theme),
+                    u_settings: JSON.stringify(state.settings)
+                };
+            }
+
+            async function fetchCloudPayload() {
+                const res = await fetch(SYNC_URL + "?t=" + Date.now(), { cache: "no-store" });
+                if (!res.ok) throw new Error("Bulut verisi okunamadı.");
+                return normalizeCloudPayload(await res.json());
+            }
+
+            async function postCloudPayload(payload) {
+                await fetch(SYNC_URL, {
+                    method: "POST",
+                    mode: "no-cors",
+                    headers: { "Content-Type": "text/plain;charset=utf-8" },
+                    body: JSON.stringify(payload)
+                });
+            }
+
+            function criticalPayloadMatchesCloud(localPayload, cloudPayload) {
+                const localPlaylists = safeJsonParse(localPayload.u_pl, {});
+                const cloudPlaylists = safeJsonParse(cloudPayload.u_pl, {});
+                const localFavorites = safeJsonParse(localPayload.u_f, []);
+                const cloudFavorites = safeJsonParse(cloudPayload.u_f, []);
+                const localSettings = safeJsonParse(localPayload.u_settings, {});
+                const cloudSettings = safeJsonParse(cloudPayload.u_settings, {});
+
+                return stableStringify(localPlaylists) === stableStringify(cloudPlaylists) &&
+                    stableStringify(localFavorites) === stableStringify(cloudFavorites) &&
+                    stableStringify(localSettings) === stableStringify(cloudSettings);
+            }
+
+            function waitMs(ms) {
+                return new Promise((resolve) => setTimeout(resolve, ms));
+            }
+
             function mergeUniqueArrays(localItems = [], cloudItems = []) {
                 return [...new Set([...(Array.isArray(localItems) ? localItems : []), ...(Array.isArray(cloudItems) ? cloudItems : [])])];
             }
@@ -3146,12 +3199,7 @@
             async function syncFromCloud() {
                 try {
                     setSyncStatus("☁️ çekiliyor...");
-                    const res = await fetch(SYNC_URL, { cache: "no-store" });
-                    if (!res.ok) {
-                        throw new Error("Bulut verisi alınamadı.");
-                    }
-                    const data = await res.json();
-                    const payload = normalizeCloudPayload(data);
+                    const payload = await fetchCloudPayload();
                     applyCloudData(payload);
                     state.lastCloudFetchAt = Date.now();
                     applyCustomTheme();
@@ -3169,23 +3217,46 @@
                 saveLocalState();
                 try {
                     setSyncStatus("☁️ gönderiliyor...");
-                    const payload = {
-                        u_f: localStorage.getItem("u_f") || "[]",
-                        u_pl: localStorage.getItem("u_pl") || "{}",
-                        u_db: localStorage.getItem("u_db") || "{}",
-                        u_m: localStorage.getItem("u_m") || "{}",
-                        u_theme: localStorage.getItem(THEME_KEY) || "{}",
-                        u_settings: localStorage.getItem(SETTINGS_KEY) || "{}"
-                    };
-                    await fetch(SYNC_URL, {
-                        method: "POST",
-                        mode: "no-cors",
-                        body: JSON.stringify(payload)
-                    });
-                    setSyncStatus("✅ senkron", true);
+                    const payload = buildCloudPayload();
+                    await postCloudPayload(payload);
+                    let cloudPayload = null;
+                    let verified = false;
+                    for (let attempt = 0; attempt < 4; attempt += 1) {
+                        await waitMs(900 + attempt * 500);
+                        cloudPayload = await fetchCloudPayload();
+                        if (criticalPayloadMatchesCloud(payload, cloudPayload)) {
+                            verified = true;
+                            break;
+                        }
+                    }
+                    if (!verified) {
+                        setSyncStatus("☁️ playlist kurtarma...");
+                        const criticalPayload = {
+                            ...payload,
+                            u_m: cloudPayload?.u_m || "{}"
+                        };
+                        await postCloudPayload(criticalPayload);
+                        for (let attempt = 0; attempt < 4; attempt += 1) {
+                            await waitMs(900 + attempt * 500);
+                            cloudPayload = await fetchCloudPayload();
+                            if (criticalPayloadMatchesCloud(criticalPayload, cloudPayload)) {
+                                verified = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (!verified) {
+                        setSyncStatus("⚠️ buluta yazılamadı", false);
+                        console.warn("Cloud sync verification failed", { payload, cloudPayload });
+                        return false;
+                    }
+                    state.lastCloudFetchAt = Date.now();
+                    setSyncStatus("✅ senkron doğrulandı", true);
+                    return true;
                 } catch (error) {
                     setSyncStatus("⚠️ senkron hata", false);
                     console.error(error);
+                    return false;
                 }
             }
 
@@ -4397,10 +4468,6 @@
                 saveIntegrations();
                 renderSourceWorkspace();
                 refreshQueueAndRender();
-            }
-
-            function waitMs(ms) {
-                return new Promise((resolve) => setTimeout(resolve, ms));
             }
 
             async function startSpotifyAuth() {
@@ -6913,11 +6980,11 @@
 
                 const mobileHidden = isMobileRuntime();
                 const fireInMs = mobileHidden
-                    ? Math.max(250, (player.duration - player.currentTime + 0.15) * 1000)
+                    ? Math.max(250, (player.duration - player.currentTime - 0.8) * 1000)
                     : Math.max(250, (player.duration - player.currentTime - state.crossfadeSeconds - 0.35) * 1000);
                 state.backgroundHandoffTimer = setTimeout(() => {
                     const active = getPlayer();
-                    if (mobileHidden && (active.ended || (active.duration && active.duration - active.currentTime <= 0.35))) {
+                    if (mobileHidden && (active.ended || (active.duration && active.duration - active.currentTime <= 1.25))) {
                         manualNext();
                     } else if (!active.paused) {
                         maybeStartCrossfade();
@@ -7470,6 +7537,7 @@
 
             function primeNextTrack() {
                 if (state.isCrossfading || state.crossfadeSeconds <= 0) return;
+                if (document.hidden && isMobileRuntime()) return;
                 const nextIndex = pickNextIndex();
                 if (nextIndex < 0) return;
                 const nextSong = state.currentQueue[nextIndex];
@@ -7479,6 +7547,8 @@
                 if (state.preloadedNextUrl === nextSong.url && inactive.src) return;
 
                 state.preloadedNextUrl = nextSong.url;
+                inactive.autoplay = false;
+                inactive.removeAttribute("autoplay");
                 inactive.preload = "auto";
                 inactive.src = nextSong.url;
                 inactive.load();
@@ -7571,7 +7641,7 @@
                 if (!player.duration || player.paused) return;
                 if (document.hidden && isMobileRuntime()) return;
                 const remaining = player.duration - player.currentTime;
-                if (remaining <= state.crossfadeSeconds + 8) {
+                if (remaining <= state.crossfadeSeconds + 3) {
                     primeNextTrack();
                 }
                 if (remaining <= state.crossfadeSeconds) {
@@ -7901,7 +7971,8 @@
                 });
 
                 [dom.pa, dom.pb].forEach((player) => {
-                    player.autoplay = true;
+                    player.autoplay = false;
+                    player.removeAttribute("autoplay");
                     player.playsInline = true;
                     player.setAttribute("playsinline", "");
                     bindAudio(player);
